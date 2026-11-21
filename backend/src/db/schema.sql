@@ -31,8 +31,10 @@ CREATE TABLE IF NOT EXISTS checkins (id TEXT PRIMARY KEY, project_id TEXT, kind 
   started_at TEXT, finished_at TEXT, real_started_at TEXT);
 CREATE TABLE IF NOT EXISTS trace_steps (checkin_id TEXT, ord INTEGER, step TEXT, summary TEXT,
   details TEXT, at TEXT);
+-- sent_at = delivered to the in-app Inbox (starts the cooldown); discord_sent = also delivered on Discord.
 CREATE TABLE IF NOT EXISTS decisions (id TEXT PRIMARY KEY, seq BIGSERIAL, checkin_id TEXT, member_id TEXT, checkpoint_id TEXT,
-  action TEXT, reason TEXT, message TEXT, sent_at TEXT);
+  action TEXT, reason TEXT, message TEXT, sent_at TEXT, discord_sent INTEGER DEFAULT 0);
+ALTER TABLE decisions ADD COLUMN IF NOT EXISTS discord_sent INTEGER DEFAULT 0;
 CREATE TABLE IF NOT EXISTS llm_calls (id TEXT PRIMARY KEY, project_id TEXT, checkin_id TEXT, purpose TEXT,
   model TEXT, input_tokens INTEGER, output_tokens INTEGER, usd DOUBLE PRECISION, wh DOUBLE PRECISION, at TEXT);
 

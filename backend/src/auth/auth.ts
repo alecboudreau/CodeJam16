@@ -95,6 +95,7 @@ export async function requireMember(req: Request, res: Response, next: NextFunct
   req.member = member;
   if (typeof req.query.viewerId === "string" || req.path.endsWith("/dashboard")) req.query.viewerId = member.id;
   if (req.body && typeof req.body === "object" && "memberId" in req.body) req.body.memberId = member.id;
+  if (req.body && typeof req.body === "object" && "viewerId" in req.body) req.body.viewerId = member.id;
   next();
 }
 

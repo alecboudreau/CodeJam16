@@ -599,8 +599,9 @@ export async function insertDecision(checkinId: string, d: Decision): Promise<st
   return id;
 }
 
-export async function markDecisionSent(decisionId: string, message: string, sentAt: string = nowIso()): Promise<void> {
-  await dbRun("UPDATE decisions SET message = ?, sent_at = ? WHERE id = ?", message, sentAt, decisionId);
+/** Sent = delivered to the in-app Inbox (always) and, when `discordSent`, also on Discord. */
+export async function markDecisionSent(decisionId: string, message: string, sentAt: string = nowIso(), discordSent = true): Promise<void> {
+  await dbRun("UPDATE decisions SET message = ?, sent_at = ?, discord_sent = ? WHERE id = ?", message, sentAt, int(discordSent), decisionId);
 }
 
 export async function setDecisionMessage(decisionId: string, message: string): Promise<void> {

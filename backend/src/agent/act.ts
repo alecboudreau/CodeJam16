@@ -3,7 +3,7 @@
 // delivers it, and the decision is marked sent. Nothing here decides whether to send.
 import { NudgeLlmOutput } from "@enforcer/shared";
 import type { Member } from "@enforcer/shared";
-import { getCheckpoint, getMembers, getTask, markDecisionSent, setDecisionMessage } from "../db/db";
+import { getCheckpoint, getMembers, getTask, markDecisionSent } from "../db/db";
 import { callSmall } from "../llm/client";
 import { buildNudgePrompt, type NudgeInput } from "../llm/prompts/nudge";
 import type { StoredDecision } from "./decide";
@@ -93,11 +93,6 @@ export async function act(opts: {
         label = `team alert on '${checkpoint.criteria}'`;
     }
 
-    if (to !== null && !to?.discordId) {
-      result.notSent.push(`${label}: hasn't linked Discord`);
-      continue;
-    }
-
     let message: string;
     try {
       const { system, user } = buildNudgePrompt(input);
@@ -107,20 +102,23 @@ export async function act(opts: {
       continue;
     }
 
-    if (!notify) {
-      // Keep the wording so it can be shown, but don't claim it was sent.
-      await setDecisionMessage(d.id, message);
-      result.notSent.push(`${label}: Discord isn't set up yet`);
-      continue;
+    // The in-app Inbox (#59) always gets the message, so it counts as sent (and starts the cooldown)
+    // even when Discord can't deliver it. Discord is tried on top; discordSent records whether it got there.
+    let discordSent = false;
+    let discordProblem = "";
+    if (!notify) discordProblem = "Discord isn't set up yet";
+    else if (to !== null && !to?.discordId) discordProblem = "hasn't linked Discord";
+    else {
+      try {
+        await notify(to, message, { buttons });
+        discordSent = true;
+      } catch (e) {
+        discordProblem = `Discord delivery failed (${(e as Error).message})`;
+      }
     }
-    try {
-      await notify(to, message, { buttons });
-      await markDecisionSent(d.id, message, now.toISOString()); // the check-in's clock, so cooldowns work on the demo clock
-      result.sent.push(label);
-    } catch (e) {
-      await setDecisionMessage(d.id, message);
-      result.notSent.push(`${label}: delivery failed (${(e as Error).message})`);
-    }
+    await markDecisionSent(d.id, message, now.toISOString(), discordSent); // the check-in's clock, so cooldowns work on the demo clock
+    if (discordSent) result.sent.push(label);
+    else result.notSent.push(`${label}: Inbox only, ${discordProblem}`);
   }
   return result;
 }

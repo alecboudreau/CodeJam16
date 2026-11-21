@@ -1,5 +1,5 @@
 // runCheckin(): orchestrates one check-in (owner: Person A). README §2.3, §10.
-// observe → filter → judge → escalate → decide (Step A now; rules in #11) → act (#12).
+// observe → filter → judge → escalate → decide → act.
 import type { TraceStep } from "@enforcer/shared";
 import { rules } from "../config";
 import {
@@ -13,6 +13,7 @@ import {
   upsertJudgment,
   type CheckinKind,
 } from "../db/db";
+import { act, type Notify } from "./act";
 import { decide } from "./decide";
 import { filterCommits } from "./filter";
 import { judgeCommits } from "./judge";
@@ -26,6 +27,8 @@ export interface CheckinOptions {
   now?: Date;
   /** Demo replay writes raw_commits itself. */
   skipGitHub?: boolean;
+  /** Overrides discord/notify.ts (tests). */
+  notify?: Notify;
 }
 
 export class CheckinError extends Error {
@@ -154,6 +157,20 @@ async function runSteps(
       "decide",
       actionable.length === 0 ? "Everyone is on track: nothing to send" : actionable.map((d) => `${d.reason} → ${d.action}`).join("; "),
       { decisions: decisions.map(({ memberId, checkpointId, action, reason }) => ({ memberId, checkpointId, action, reason })) },
+    );
+
+    // 5. Act: the small model words each message, discord/notify.ts sends it.
+    current = "act";
+    const acted = await act({ projectId, checkinId, decisions, now, notify: opts.notify });
+    const total = acted.sent.length + acted.notSent.length;
+    trace.step(
+      "act",
+      total === 0
+        ? "Nothing to send"
+        : [acted.sent.length ? `Sent: ${acted.sent.join(", ")}` : "", acted.notSent.length ? `Not sent: ${acted.notSent.join("; ")}` : ""]
+            .filter(Boolean)
+            .join(". "),
+      { sent: acted.sent, notSent: acted.notSent },
     );
   } catch (e) {
     trace.step(current, `failed: ${(e as Error).message}`);

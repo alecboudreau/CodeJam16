@@ -3,6 +3,7 @@ import express, { type ErrorRequestHandler } from "express";
 import cors from "cors";
 import { ZodError } from "zod";
 import { config } from "./config";
+import { startBot } from "./discord/bot";
 import { projectsRouter } from "./routes/projects";
 import { taskmapRouter } from "./routes/taskmap";
 import { checkinRouter } from "./routes/checkin";
@@ -38,4 +39,5 @@ app.use(onError);
 
 app.listen(config.port, () => {
   console.log(`backend listening on http://localhost:${config.port}`);
+  startBot()?.catch((e) => console.error("discord: login failed", e));
 });

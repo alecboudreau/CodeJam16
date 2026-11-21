@@ -1,12 +1,12 @@
 // Plan routes (owner: Person A). README §2.1, §2.2, §7.
 import { Router, type RequestHandler } from "express";
+import { AgreeBody, PutTaskMapBody } from "@enforcer/shared";
 import type { Checkpoint, Member, PlanItemRef, Task, TaskMap } from "@enforcer/shared";
 import { rules } from "../config";
 import {
   deleteCheckpoint,
   deleteTask,
   getCheckpoints,
-  getMembers,
   getProject,
   getProjectPlanState,
   getTasks,
@@ -166,3 +166,196 @@ taskmapRouter.post(
     res.json(buildTaskMap(projectId));
   }),
 );
+
+// ---------- GET /projects/:id/taskmap ----------
+
+taskmapRouter.get("/projects/:id/taskmap", (req, res) => {
+  const map = buildTaskMap(req.params.id);
+  if (!map) {
+    res.status(404).json({ error: "project not found" });
+    return;
+  }
+  res.json(map);
+});
+
+// ---------- PUT /projects/:id/taskmap ----------
+
+const sameList = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join("\n") === [...b].sort().join("\n");
+const sameTime = (a: string, b: string) => new Date(a).getTime() === new Date(b).getTime();
+
+function taskChanged(a: Task, b: Task): boolean {
+  return (
+    a.title !== b.title ||
+    a.description !== b.description ||
+    a.points !== b.points ||
+    a.ownerId !== b.ownerId ||
+    a.tracked !== b.tracked ||
+    !sameList(a.paths, b.paths) ||
+    !sameList(a.dependsOn, b.dependsOn)
+  );
+}
+
+function checkpointChanged(a: Checkpoint, b: Checkpoint): boolean {
+  return (
+    a.taskId !== b.taskId ||
+    a.ownerId !== b.ownerId ||
+    !sameTime(a.dueAt, b.dueAt) ||
+    a.targetCompletion !== b.targetCompletion ||
+    a.criteria !== b.criteria
+  );
+}
+
+/** Problems with an edited plan, or [] if it's consistent. */
+function validatePlan(memberIds: Set<string>, tasks: Task[], checkpoints: Checkpoint[]): string[] {
+  const errors: string[] = [];
+  const taskById = new Map<string, Task>();
+  for (const t of tasks) {
+    if (taskById.has(t.id)) errors.push(`task id ${t.id} is used twice`);
+    taskById.set(t.id, t);
+    if (!memberIds.has(t.ownerId)) errors.push(`task "${t.title}" has an owner who isn't on the team`);
+  }
+  for (const t of tasks) {
+    for (const d of t.dependsOn) {
+      if (!taskById.has(d) || d === t.id) errors.push(`task "${t.title}" depends on an unknown task`);
+    }
+  }
+  const checkpointIds = new Set<string>();
+  for (const c of checkpoints) {
+    if (checkpointIds.has(c.id)) errors.push(`checkpoint id ${c.id} is used twice`);
+    checkpointIds.add(c.id);
+    const task = taskById.get(c.taskId);
+    if (!task) errors.push(`checkpoint "${c.criteria}" belongs to an unknown task`);
+    else if (!task.tracked) errors.push(`checkpoint "${c.criteria}" is on untracked task "${task.title}"`);
+    if (c.ownerId !== null && !memberIds.has(c.ownerId)) {
+      errors.push(`checkpoint "${c.criteria}" has an owner who isn't on the team`);
+    }
+  }
+  return errors;
+}
+
+taskmapRouter.put("/projects/:id/taskmap", (req, res) => {
+  const projectId = req.params.id;
+  const body = PutTaskMapBody.parse(req.body);
+  const project = getProject(projectId);
+  const state = getProjectPlanState(projectId);
+  if (!project || !state) {
+    res.status(404).json({ error: "project not found" });
+    return;
+  }
+  if (state.planActive) {
+    // Proposing changes to an active plan is a separate (Should) issue.
+    res.status(409).json({ error: "the plan is active; changing an active plan isn't supported yet" });
+    return;
+  }
+
+  const errors = validatePlan(new Set(project.members.map((m) => m.id)), body.tasks, body.checkpoints);
+  if (errors.length > 0) {
+    res.status(400).json({ error: "invalid plan", issues: errors });
+    return;
+  }
+
+  const oldTasks = new Map(getTasks(projectId).map((t) => [t.id, t]));
+  const oldCheckpoints = new Map(getCheckpoints(projectId).map((c) => [c.id, c]));
+
+  // Only changed items lose their approvals. Progress and status are the server's, never the client's.
+  const tasks: Task[] = body.tasks.map((t) => {
+    const old = oldTasks.get(t.id);
+    return {
+      ...t,
+      paths: t.tracked ? t.paths : [],
+      completion: old?.completion ?? 0,
+      approvedBy: old && !taskChanged(old, t) ? old.approvedBy : [],
+    };
+  });
+  const checkpoints: Checkpoint[] = body.checkpoints.map((c) => {
+    const old = oldCheckpoints.get(c.id);
+    const unchanged = old !== undefined && !checkpointChanged(old, c);
+    return {
+      id: c.id,
+      taskId: c.taskId,
+      ownerId: c.ownerId,
+      dueAt: new Date(c.dueAt).toISOString(),
+      targetCompletion: c.targetCompletion,
+      criteria: c.criteria,
+      status: old?.status ?? "pending",
+      missedAt: old?.missedAt,
+      graceEndsAt: old?.graceEndsAt,
+      approvedBy: unchanged ? old.approvedBy : [],
+    };
+  });
+  const graceUnchanged = state.gracePeriodHours === body.gracePeriodHours;
+
+  tx(() => {
+    const keepTasks = new Set(tasks.map((t) => t.id));
+    const keepCheckpoints = new Set(checkpoints.map((c) => c.id));
+    for (const id of oldCheckpoints.keys()) if (!keepCheckpoints.has(id)) deleteCheckpoint(id);
+    for (const id of oldTasks.keys()) if (!keepTasks.has(id)) deleteTask(id);
+    for (const t of tasks) upsertTask(projectId, t);
+    for (const c of checkpoints) upsertCheckpoint(projectId, c);
+    updateProjectPlanState(projectId, {
+      gracePeriodHours: body.gracePeriodHours,
+      graceApprovedBy: graceUnchanged ? state.graceApprovedBy : [],
+    });
+  });
+
+  res.json(buildTaskMap(projectId));
+});
+
+// ---------- POST /projects/:id/taskmap/agree ----------
+
+const refKey = (r: PlanItemRef) => (r.kind === "grace" ? "grace" : `${r.kind}:${r.id}`);
+
+taskmapRouter.post("/projects/:id/taskmap/agree", (req, res) => {
+  const projectId = req.params.id;
+  const { memberId, items } = AgreeBody.parse(req.body);
+  const map = buildTaskMap(projectId);
+  const project = getProject(projectId);
+  if (!map || !project) {
+    res.status(404).json({ error: "project not found" });
+    return;
+  }
+  if (!project.members.some((m) => m.id === memberId)) {
+    res.status(403).json({ error: "not a member of this project" });
+    return;
+  }
+  if (map.active) {
+    res.json(map); // nothing to approve; pending changes are a separate (Should) issue
+    return;
+  }
+
+  // What this member may approve: their own tasks and personal checkpoints, plus shared items.
+  const allowed = new Set<string>(["grace"]);
+  for (const t of map.tasks) if (t.ownerId === memberId) allowed.add(refKey({ kind: "task", id: t.id }));
+  for (const c of map.checkpoints) {
+    if (c.ownerId === null || c.ownerId === memberId) allowed.add(refKey({ kind: "checkpoint", id: c.id }));
+  }
+
+  const requested = items ?? map.waitingOn.filter((w) => w.memberIds.includes(memberId)).map((w) => w.item);
+  const notAllowed = requested.filter((r) => !allowed.has(refKey(r)));
+  if (notAllowed.length > 0) {
+    res.status(403).json({ error: "you can only approve your own items and shared ones", items: notAllowed });
+    return;
+  }
+
+  const add = (list: string[]) => (list.includes(memberId) ? list : [...list, memberId]);
+  const keys = new Set(requested.map(refKey));
+  tx(() => {
+    for (const t of map.tasks) {
+      if (keys.has(refKey({ kind: "task", id: t.id }))) upsertTask(projectId, { ...t, approvedBy: add(t.approvedBy) });
+    }
+    for (const c of map.checkpoints) {
+      if (keys.has(refKey({ kind: "checkpoint", id: c.id }))) {
+        upsertCheckpoint(projectId, { ...c, approvedBy: add(c.approvedBy) });
+      }
+    }
+    if (keys.has("grace")) updateProjectPlanState(projectId, { graceApprovedBy: add(map.graceApprovedBy) });
+
+    // Everything approved by the right people → the plan becomes active.
+    const after = buildTaskMap(projectId)!;
+    if (after.tasks.length > 0 && after.waitingOn.length === 0) {
+      updateProjectPlanState(projectId, { planActive: true, planVersion: after.version + 1 });
+    }
+  });
+
+  res.json(buildTaskMap(projectId));
+});

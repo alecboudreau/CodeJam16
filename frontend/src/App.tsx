@@ -12,11 +12,13 @@ import { ErrorState, LoadingState } from "./components/PageFeedback";
 import SignIn from "./pages/SignIn";
 import { signOut, supabase } from "./auth/supabase";
 import PageErrorBoundary from "./components/PageErrorBoundary";
+import Inbox, { useInbox } from "./pages/Inbox";
 
 const links = [
   ["/setup", "Setup"],
   ["/taskmap", "Task map"],
   ["/dashboard", "Dashboard"],
+  ["/inbox", "Inbox"],
   ["/trace", "Trace"],
   ["/report", "Report"],
 ] as const;
@@ -149,6 +151,7 @@ function AppShell() {
   const auth = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const inbox = useInbox(!projectLoading && !projectError ? project?.id ?? "" : "", viewerId);
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2">Skip to content</a>
@@ -160,7 +163,7 @@ function AppShell() {
       <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
         {links.map(([to, label]) => (
           <NavLink key={to} to={to} className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? "bg-blue-50 text-blue-800" : "text-gray-600 hover:bg-gray-50"}`}>
-            {label}
+            {label}{to === "/inbox" && project && viewerId && <span aria-live="polite">{inbox.data ? ` (${inbox.data.unreadCount})` : inbox.error ? " (?)" : " (…)"}</span>}
           </NavLink>
         ))}
         {auth.on ? <div className="mt-1 flex w-full min-w-0 items-center gap-3 text-sm sm:ml-auto sm:mt-0 sm:w-auto">
@@ -187,6 +190,7 @@ function AppShell() {
           <Route path="/setup" element={<Setup />} />
           <Route path="/taskmap" element={<TaskMap />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/inbox" element={<Inbox key={`${project?.id ?? ""}:${viewerId}`} inbox={inbox} />} />
           <Route path="/trace" element={<Trace />} />
           <Route path="/report" element={<Report />} />
           <Route path="*" element={<ErrorState title="Page not found"><Link to="/dashboard" className="font-medium underline">Open Dashboard</Link></ErrorState>} />

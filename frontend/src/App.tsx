@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Trace from "./pages/Trace";
 import Report from "./pages/Report";
 import { ErrorState, LoadingState } from "./components/PageFeedback";
+import SignIn from "./pages/SignIn";
+import { signOut, supabase } from "./auth/supabase";
 import PageErrorBoundary from "./components/PageErrorBoundary";
 
 const links = [
@@ -30,6 +32,43 @@ interface ProjectContextValue {
   openDemo: () => void;
 }
 const ProjectContext = createContext<ProjectContextValue | null>(null);
+
+// ---------- sign-in (#62) ----------
+// The backend says whether sign-in is on (GET /auth/config), so the web app never needs its own setting.
+interface AuthValue { on: boolean; email: string }
+const AuthContext = createContext<AuthValue>({ on: false, email: "" });
+const useAuth = () => useContext(AuthContext);
+
+function AuthGate({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<"checking" | "off" | "signed-out" | "signed-in" | "error">(useMocks ? "off" : "checking");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (useMocks) return;
+    let cancelled = false;
+    let unsubscribe = () => {};
+    setState("checking");
+    api.getAuthConfig().then(async ({ enabled }) => {
+      if (cancelled) return;
+      if (!enabled) { setState("off"); return; }
+      if (!supabase) { setError("Sign-in is on, but VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY aren't set for the web app."); setState("error"); return; }
+      const apply = (session: { user: { email?: string } } | null) => {
+        if (cancelled) return;
+        setEmail(session?.user.email ?? "");
+        setState(session ? "signed-in" : "signed-out");
+      };
+      apply((await supabase.auth.getSession()).data.session);
+      unsubscribe = supabase.auth.onAuthStateChange((_event, session) => apply(session)).data.subscription.unsubscribe;
+    }).catch((e: unknown) => { if (!cancelled) { setError(e instanceof Error ? e.message : "Couldn't reach the backend."); setState("error"); } });
+    return () => { cancelled = true; unsubscribe(); };
+  }, [attempt]);
+
+  if (state === "checking") return <div className="p-8"><LoadingState message="Checking sign-in…" /></div>;
+  if (state === "error") return <div className="p-8"><ErrorState title="Could not start the app" onRetry={() => setAttempt((n) => n + 1)} retryLabel="Retry"><p>{error}</p></ErrorState></div>;
+  if (state === "signed-out") return <SignIn />;
+  return <AuthContext.Provider value={{ on: state === "signed-in", email }}>{children}</AuthContext.Provider>;
+}
 
 // Later pages can adopt a created project and react to member changes.
 export function useProject(): ProjectContextValue {
@@ -76,6 +115,14 @@ function ProjectProvider({ children }: { children: ReactNode }) {
     } else setProjectLoading(false);
     return () => { cancelled = true; };
   }, [attempt]);
+  const auth = useAuth();
+  useEffect(() => {
+    if (!auth.on || !project) return;
+    let cancelled = false;
+    api.getMe(project.id).then((me) => { if (!cancelled) { saveViewerId(project.id, me.id); updateViewerId(me.id); } })
+      .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "Could not work out who you are in this project."); });
+    return () => { cancelled = true; };
+  }, [auth.on, project?.id]);
   const setViewerId = (id: string) => {
     if (!project || (id && !project.members.some((m) => m.id === id))) return;
     saveViewerId(project.id, id);
@@ -99,6 +146,7 @@ function ProjectProvider({ children }: { children: ReactNode }) {
 
 function AppShell() {
   const { project, setProject, viewerId, setViewerId, projectLoading, projectError, retryProject, openDemo } = useProject();
+  const auth = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   return (
@@ -115,14 +163,17 @@ function AppShell() {
             {label}
           </NavLink>
         ))}
-        <label className="mt-1 flex w-full min-w-0 items-center gap-2 sm:ml-auto sm:mt-0 sm:w-auto">
+        {auth.on ? <div className="mt-1 flex w-full min-w-0 items-center gap-3 text-sm sm:ml-auto sm:mt-0 sm:w-auto">
+          <span className="min-w-0 truncate text-gray-600">Signed in as <strong className="text-gray-900">{project?.members.find((m) => m.id === viewerId)?.name ?? auth.email}</strong></span>
+          <button type="button" onClick={() => { void signOut(); }} className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-1.5 font-medium hover:bg-gray-50">Sign out</button>
+        </div> : <label className="mt-1 flex w-full min-w-0 items-center gap-2 sm:ml-auto sm:mt-0 sm:w-auto">
           <span className="shrink-0 text-sm font-medium">Who are you?</span>
           <select aria-label="Who are you?" className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:max-w-64"
             value={viewerId} disabled={projectLoading || !project?.members.length} onChange={(event) => setViewerId(event.target.value)}>
             <option value="">{projectLoading ? "Loading team…" : project ? "Choose a member" : "Set up a project first"}</option>
             {project?.members.map((member) => <option key={member.id} value={member.id}>{member.name} (@{member.githubUsername})</option>)}
           </select>
-        </label>
+        </label>}
       </nav>
       </header>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -147,5 +198,5 @@ function AppShell() {
 }
 
 export default function App() {
-  return <ProjectProvider><AppShell /></ProjectProvider>;
+  return <AuthGate><ProjectProvider><AppShell /></ProjectProvider></AuthGate>;
 }

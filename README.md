@@ -167,7 +167,7 @@ One click produces a **neutral status summary** for the team: for each task and 
 | Validation | `zod` (shared schemas, LLM JSON output) |
 | Deploy | Vercel (frontend), Render or Railway (backend + bot) |
 
-**No user accounts.** For the hackathon the web app has a "Who are you?" member picker. It's sent as `viewerId` (dashboard) or `memberId` (approvals, disputes). Real auth is out of scope, so owner-only evidence is a UI rule, not a security boundary.
+**Sign-in (#62): Supabase Auth.** With `SUPABASE_URL` set, members sign in with **Discord** (the account they `/link`ed) or an **email link**. The backend verifies the Supabase token (ES256, via Supabase's public signing keys) and works out which member you are in each project: Discord account first, then email. It **overwrites** any `viewerId` / `memberId` the browser sends, and non-members get 403. So owner-only evidence is now enforced by the server. Creating a project requires adding yourself with the email you signed in with. **`AUTH_DISABLED=true`** brings back the "Who are you?" picker for local demos (all four demo members share the presenter's Discord account); never set it in production.
 
 ---
 

@@ -3,6 +3,7 @@ import type {
   Project, Report, TaskMap, TraceStep,
 } from "@enforcer/shared";
 import { mockRequest } from "./mock";
+import { accessToken } from "../auth/supabase";
 
 export const useMocks = import.meta.env.VITE_USE_MOCKS === "true";
 const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001/api").replace(/\/$/, "");
@@ -41,6 +42,12 @@ function member(projectId: string, memberId = getViewerId(projectId)): string {
   return memberId;
 }
 
+/** Authorization header for the signed-in user (empty when sign-in is off or nobody is signed in). */
+export async function authHeaders(): Promise<Record<string, string>> {
+  const token = await accessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   if (useMocks) return await mockRequest(method, path, body) as T;
   const multipart = body instanceof FormData;
@@ -48,7 +55,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   try {
     response = await fetch(`${baseUrl}${path}`, {
       method,
-      headers: body === undefined || multipart ? undefined : { "Content-Type": "application/json" },
+      headers: { ...(await authHeaders()), ...(body === undefined || multipart ? {} : { "Content-Type": "application/json" }) },
       body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
     });
   } catch {
@@ -72,6 +79,8 @@ const projectPath = (id: string) => `/projects/${encodeURIComponent(id)}`;
 
 // Pages use the same methods in mock and live mode. Identity defaults to the picker.
 export const api = {
+  getAuthConfig: () => request<{ enabled: boolean }>("GET", "/auth/config"),
+  getMe: (id: string) => request<Member>("GET", `${projectPath(id)}/me`),
   createProject: (input: CreateProjectInput) => request<Project>("POST", "/projects", input),
   getProject: (id: string) => request<Project>("GET", projectPath(id)),
   addAlias: (id: string, memberId: string, githubLogin: string) =>

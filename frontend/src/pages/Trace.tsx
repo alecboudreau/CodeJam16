@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import type { Project, TraceStep as Step } from "@enforcer/shared";
-import { api, ApiError, useMocks } from "../api/client";
+import { api, ApiError, authHeaders, useMocks } from "../api/client";
 import { useProject } from "../App";
 import TraceStep from "../components/TraceStep";
 import ComputeMeter from "../components/ComputeMeter";
@@ -41,7 +41,7 @@ async function getHistory(projectId: string): Promise<Checkin[]> {
     return sortHistory(rows);
   }
   const base = (import.meta.env.VITE_API_URL || "http://localhost:3001/api").replace(/\/$/, "");
-  const response = await fetch(`${base}/projects/${encodeURIComponent(projectId)}/checkins`);
+  const response = await fetch(`${base}/projects/${encodeURIComponent(projectId)}/checkins`, { headers: await authHeaders() });
   let body: unknown;
   try { body = await response.json(); }
   catch { throw new ApiError(`Could not read check-in history (${response.status}).`, response.status); }

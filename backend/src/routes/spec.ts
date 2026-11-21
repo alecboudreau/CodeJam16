@@ -1,1 +1,57 @@
-export {};
+// POST /projects/:id/spec (owner: Person C, C3). README §7: multipart `file` → { chars }.
+import { Router, type RequestHandler } from "express";
+import multer from "multer";
+import { getProject, getProjectPlanState, updateProjectPlanState } from "../db/db";
+import { extractSpecText, SpecError } from "../spec/extract";
+
+export const specRouter = Router();
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
+
+/** Runs multer and turns its errors (file too big, wrong field) into readable 4xx answers. */
+const receiveFile: RequestHandler = (req, res, next) => {
+  upload.single("file")(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError) {
+      res.status(err.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
+        error: err.code === "LIMIT_FILE_SIZE" ? "The spec file is too big (max 10 MB)." : `Upload the spec as a single "file" field (${err.message}).`,
+      });
+      return;
+    }
+    if (err) {
+      next(err);
+      return;
+    }
+    next();
+  });
+};
+
+specRouter.post("/projects/:id/spec", receiveFile, (req, res, next) => {
+  const project = getProject(req.params.id);
+  const state = getProjectPlanState(req.params.id);
+  if (!project || !state) {
+    res.status(404).json({ error: "project not found" });
+    return;
+  }
+  if (state.planActive) {
+    res.status(409).json({ error: "the plan is already active; the spec can't change now" });
+    return;
+  }
+  if (!req.file) {
+    res.status(400).json({ error: 'Attach the spec as a "file" field.' });
+    return;
+  }
+
+  extractSpecText(req.file)
+    .then((text) => {
+      updateProjectPlanState(project.id, { specText: text });
+      res.json({ chars: text.length });
+    })
+    .catch((e: unknown) => {
+      if (e instanceof SpecError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      next(e);
+    });
+});

@@ -1,1 +1,37 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body { margin: 0; line-height: 1.55; }
+main { outline: none; }
+main :where(section, article, fieldset, form) { min-inline-size: 0; }
+main :where(h1, h2, h3, h4, p, li, label, td, th, [role="alert"], [role="status"]) { overflow-wrap: anywhere; }
+main :where(input, select, textarea) { max-inline-size: 100%; }
+main pre { max-inline-size: 100%; }
+button, select, input:not([type="checkbox"]):not([type="radio"]) { min-block-size: 2.5rem; }
+button:not(:disabled), summary { cursor: pointer; }
+textarea { resize: vertical; }
+input[type="checkbox"], input[type="radio"] { accent-color: #1d4ed8; }
+:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+main :is(.text-gray-500, .text-gray-600) { color: #475569; }
+@layer components {
+  .feedback-card { margin-inline: auto; max-inline-size: 64rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.5rem; }
+}
+
+/* Keep rem-based text and controls readable at common demo/projector sizes. */
+@media (min-width: 1024px) { html { font-size: 18px; } }
+@media (min-width: 1600px) { html { font-size: 20px; } }
+@media (max-width: 639px) {
+  .stack-table, .stack-table tbody, .stack-table tr, .stack-table th, .stack-table td { display: block; width: 100%; }
+  .stack-table thead { display: none; }
+  .stack-table tr { padding-block: 0.75rem; }
+  .stack-table th, .stack-table td { padding: 0.25rem 0; }
+  .stack-table td::before { content: attr(data-label) ": "; font-weight: 600; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

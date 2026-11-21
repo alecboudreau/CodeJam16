@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { CreateProjectBody, type Project } from "@enforcer/shared";
 import { api } from "../api/client";
@@ -30,6 +30,10 @@ export default function Setup() {
   const [refreshing, setRefreshing] = useState(false);
   const [linkError, setLinkError] = useState("");
   const submitting = useRef(false);
+  const mounted = useRef(true);
+  const errorBox = useRef<HTMLDivElement>(null);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => { if (error) errorBox.current?.focus(); }, [error]);
   const busy = step !== "idle";
 
   function editMember(key: string, field: keyof Omit<MemberDraft, "key">, value: string) {
@@ -86,22 +90,24 @@ export default function Setup() {
       if (!current) {
         setStep("create");
         current = await api.createProject(result.data);
+        if (!mounted.current) return;
         setCreated(current);
         setProject(current);
       }
       if (uploadedFile !== file) {
         setStep("upload");
         await api.uploadSpec(current.id, file);
+        if (!mounted.current) return;
         setUploadedFile(file);
       }
       setStep("generate");
       await api.generateTaskMap(current.id);
-      navigate("/taskmap");
+      if (mounted.current) navigate("/taskmap");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Setup could not finish. Please try again.");
+      if (mounted.current) setError(error instanceof Error ? error.message : "Setup could not finish. Please try again.");
     } finally {
       submitting.current = false;
-      setStep("idle");
+      if (mounted.current) setStep("idle");
     }
   }
 
@@ -109,9 +115,9 @@ export default function Setup() {
     if (!project || refreshing) return;
     setRefreshing(true);
     setLinkError("");
-    try { setProject(await api.getProject(project.id)); }
-    catch (error: unknown) { setLinkError(error instanceof Error ? error.message : "Could not refresh Discord links."); }
-    finally { setRefreshing(false); }
+    try { const value = await api.getProject(project.id); if (mounted.current) setProject(value); }
+    catch (error: unknown) { if (mounted.current) setLinkError(error instanceof Error ? error.message : "Could not refresh Discord links."); }
+    finally { if (mounted.current) setRefreshing(false); }
   }
 
   return (
@@ -183,7 +189,7 @@ export default function Setup() {
         </fieldset>
 
         {created && <p className="text-sm text-gray-600">Project saved. If setup fails, retry to continue with this project.</p>}
-        {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
+        {error && <div ref={errorBox} tabIndex={-1} role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
         <div className="flex flex-wrap items-center gap-4">
           <button type="submit" disabled={busy} className="rounded-lg bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-wait disabled:opacity-60">
             {step === "create" ? "Creating project…" : step === "upload" ? "Uploading specification…" : step === "generate" ? "Drafting your plan…" : created ? "Continue setup" : "Create project & draft plan"}

@@ -23,8 +23,8 @@ export default function ActivityTimeline({ timeline }: { timeline: Dashboard["ti
     </svg>
     <div className="flex justify-between gap-3 text-xs text-gray-500"><span>{dateLabel(data[0].date)}</span>{data.length > 1 && <span>{dateLabel(data[data.length - 1].date)}</span>}</div>
     <details className="mt-4 text-sm"><summary className="cursor-pointer font-medium text-blue-700">View progress data</summary>
-      <table className="mt-3 w-full text-left"><caption className="sr-only">Overall project completion over time</caption><thead><tr><th scope="col" className="py-2">Date</th><th scope="col">Project completion</th></tr></thead>
-        <tbody>{data.map((point, index) => <tr key={`${point.date}-${index}`} className="border-t border-gray-100"><th scope="row" className="py-2 font-normal">{dateLabel(point.date)}</th><td>{Math.round(fraction(point.overallProgress) * 100)}%</td></tr>)}</tbody>
+      <table role="table" className="stack-table mt-3 w-full text-left"><caption className="sr-only">Overall project completion over time</caption><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col" className="py-2">Date</th><th role="columnheader" scope="col">Project completion</th></tr></thead>
+        <tbody role="rowgroup">{data.map((point, index) => <tr role="row" key={`${point.date}-${index}`} className="border-t border-gray-100"><th role="rowheader" scope="row" className="py-2 font-normal">{dateLabel(point.date)}</th><td role="cell" data-label="Project completion">{Math.round(fraction(point.overallProgress) * 100)}%</td></tr>)}</tbody>
       </table>
     </details>
   </div>;

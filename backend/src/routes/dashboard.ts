@@ -58,12 +58,17 @@ dashboardRouter.get("/projects/:id/dashboard", (req, res) => {
   // The viewer's own evidence only.
   const ownTasks = tasks.filter((t) => t.ownerId === viewerId);
   const ownIds = new Set(ownTasks.map((t) => t.id));
+  // Commits from a git identity later assigned to the viewer as an alias count as theirs too.
+  const viewer = project.members.find((m) => m.id === viewerId)!;
+  const viewerLogins = new Set([viewer.githubUsername, ...viewer.githubAliases].map((s) => s.toLowerCase()));
+  const byViewer = (j: Judgment) =>
+    j.authorIds.includes(viewerId) || (!!j.unmatchedLogin && viewerLogins.has(j.unmatchedLogin.toLowerCase()));
   const evidence = new Map<string, Judgment[]>(ownTasks.map((t) => [t.id, []]));
   for (const j of judgments) {
     const taskId =
       j.taskId && ownIds.has(j.taskId)
         ? j.taskId
-        : j.kind === "filtered" && j.authorIds.includes(viewerId)
+        : j.kind === "filtered" && byViewer(j)
           ? taskForFiltered(j, ownTasks)
           : null;
     if (taskId) evidence.get(taskId)!.push(j);

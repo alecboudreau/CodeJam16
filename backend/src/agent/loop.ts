@@ -62,6 +62,9 @@ export function startCheckin(projectId: string, opts: CheckinOptions): { checkin
   if (running.has(projectId)) throw new CheckinError("a check-in is already running for this project", 409);
 
   const now = opts.now ?? projectNow(projectId);
+  // On the demo clock, commits come from the replay, never from GitHub (the demo repo name isn't real).
+  const onDemoClock = Boolean(getProjectPlanState(projectId)?.demoNow);
+  opts = { ...opts, skipGitHub: opts.skipGitHub ?? onDemoClock };
   const checkin = insertCheckin(projectId, opts.kind, now.toISOString());
   const trace = createTracer(checkin.id);
 

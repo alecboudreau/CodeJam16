@@ -2,7 +2,7 @@ import type {
   Checkpoint, ComputeMeter, Dashboard, Dispute, Judgment, Member, PlanItemRef,
   Project, Report, Task, TaskMap, TraceStep,
 } from "@enforcer/shared";
-import type { CreateProjectInput, DisputeInput, UpdatePlanInput } from "./client";
+import type { CreateProjectInput, DisputeInput, InboxData, InboxItem, StatusInput, UpdatePlanInput } from "./client";
 
 export const demoProjectId = "demo-payments";
 const at = "2026-11-20T18:00:00.000Z";
@@ -82,9 +82,23 @@ interface MockState {
   trace: TraceStep[];
   meter: ComputeMeter;
   specText: string;
+  inbox: (InboxItem & { memberId: string | null })[];
 }
+const reminder = (id: string, memberId: string | null, kind: InboxItem["kind"], checkpointId: string, message: string, deliveredOnDiscord: boolean, date: string): MockState["inbox"][number] => {
+  const cp = checkpoints.find((cp) => cp.id === checkpointId)!;
+  return { id, memberId, kind, message, deliveredOnDiscord, at: date, answered: null,
+    checkpoint: { id: cp.id, criteria: cp.criteria, taskTitle: tasks.find((task) => task.id === cp.taskId)!.title } };
+};
+const demoInbox = [
+  reminder("inbox-settings-new", "jordan", "nudge", "cp-settings", "Could you check whether preferences are saved on the Settings page? Let us know if you're blocked or need help.", false, "2026-11-20T18:00:00.000Z"),
+  reminder("inbox-settings-old", "jordan", "nudge", "cp-settings", "The checkpoint for saving preferences is still open. How is it going?", true, "2026-11-18T18:00:00.000Z"),
+  reminder("inbox-blocker", "alex", "nudge_blocker", "cp-dashboard", "Sam is waiting on the payment history endpoint to finish the dashboard payment list. Can you help unblock it?", true, "2026-11-20T18:00:00.000Z"),
+  reminder("inbox-sam", "sam", "nudge", "cp-dashboard", "Can you check the dashboard payment list? Let us know if something is blocking you.", true, "2026-11-20T17:00:00.000Z"),
+  reminder("inbox-alert", null, "team_alert", "cp-settings", "The checkpoint for saving preferences is still open. Is there anything the team can do to help?", true, "2026-11-20T18:00:00.000Z"),
+  reminder("inbox-help", null, "help_post", "cp-dashboard", "Sam could use a hand wiring the payment list. Can someone pair on the dashboard checkpoint?", false, "2026-11-19T18:00:00.000Z"),
+];
 const states = new Map<string, MockState>();
-states.set(demoProjectId, structuredClone({ project: demoProject, plan: demoPlan, judgments, disputes: [], trace: demoTrace, meter: demoMeter, specText: "Demo payment app specification" }));
+states.set(demoProjectId, structuredClone({ project: demoProject, plan: demoPlan, judgments, disputes: [], trace: demoTrace, meter: demoMeter, specText: "Demo payment app specification", inbox: demoInbox }));
 
 function fail(message: string, status = 400): never {
   // Same error shape as the live wrapper, without a runtime import cycle.
@@ -92,6 +106,16 @@ function fail(message: string, status = 400): never {
 }
 function findMember(state: MockState, id: string): Member {
   return state.project.members.find((m) => m.id === id) ?? fail("Member not found in this project", 404);
+}
+function inbox(state: MockState, viewerId: string): InboxData {
+  const viewer = findMember(state, viewerId);
+  const ordered = [...state.inbox].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  const forYou = ordered.filter((row) => row.memberId === viewerId && (row.kind === "nudge" || row.kind === "nudge_blocker")).map(({ memberId: _memberId, ...row }) => ({
+    ...row, answered: viewer.status !== "none" && viewer.statusAt && Date.parse(viewer.statusAt) > Date.parse(row.at)
+      ? { status: viewer.status, ...(viewer.status === "blocked" ? { blockedByName: findMember(state, viewer.blockedById!).name } : {}) } : null,
+  }));
+  const team = ordered.filter((row) => row.kind === "help_post" || row.kind === "team_alert").map(({ memberId: _memberId, ...row }) => row);
+  return { forYou, team, unreadCount: forYou.filter((row) => row.answered === null).length };
 }
 function refreshPlan(state: MockState): void {
   const { plan, project } = state;
@@ -146,13 +170,29 @@ export async function mockRequest(method: string, path: string, body?: unknown):
         ...input, id: crypto.randomUUID(), createdAt: new Date().toISOString(), planActive: false, gracePeriodHours: 48,
         members: input.members.map((m) => ({ ...m, id: crypto.randomUUID(), githubAliases: [], status: "none" })),
       };
-      states.set(project.id, { project, plan: { projectId: project.id, tasks: [], checkpoints: [], gracePeriodHours: 48, graceApprovedBy: [], active: false, version: 0, pending: null, waitingOn: [] }, judgments: [], disputes: [], trace: [], meter: { ours: { tokens: 0, usd: 0, wh: 0, aiCalls: 0 }, naive: { tokens: 0, usd: 0, wh: 0, aiCalls: 0 }, filteredWithoutAi: 0, skippedCheckins: 0, disputeRejudges: 0 }, specText: "" });
+      states.set(project.id, { project, plan: { projectId: project.id, tasks: [], checkpoints: [], gracePeriodHours: 48, graceApprovedBy: [], active: false, version: 0, pending: null, waitingOn: [] }, judgments: [], disputes: [], trace: [], meter: { ours: { tokens: 0, usd: 0, wh: 0, aiCalls: 0 }, naive: { tokens: 0, usd: 0, wh: 0, aiCalls: 0 }, filteredWithoutAi: 0, skippedCheckins: 0, disputeRejudges: 0 }, specText: "", inbox: [] });
       return project;
     }
     if (parts[0] !== "projects") return fail("Mock endpoint not found", 404);
     const state = states.get(parts[1]) ?? fail("Project not found", 404);
     const route = parts.slice(2).join("/");
     if (method === "GET" && !route) return state.project;
+    if (method === "GET" && route === "inbox") return inbox(state, url.searchParams.get("viewerId") || "");
+    if (method === "POST" && parts[2] === "members" && parts[4] === "status" && parts.length === 5) {
+      const input = body as (StatusInput & { viewerId: string }) | undefined;
+      if (!input || typeof input !== "object" || input.viewerId !== parts[3]) return fail("You can only respond as yourself", 403);
+      const member = findMember(state, parts[3]);
+      if (!["on_it", "blocked", "need_help"].includes(input.status)) return fail("Choose a valid status");
+      if (input.status === "blocked") {
+        if (!input.blockedById || input.blockedById === member.id) return fail("Choose another teammate you're waiting on");
+        findMember(state, input.blockedById);
+      } else if (input.blockedById !== undefined) return fail("Only Blocked can include a teammate");
+      member.status = input.status;
+      member.statusAt = new Date().toISOString();
+      if (input.status === "blocked") member.blockedById = input.blockedById;
+      else delete member.blockedById;
+      return member;
+    }
     if (method === "POST" && parts[2] === "members" && parts[4] === "aliases") {
       const member = findMember(state, parts[3]);
       const { githubLogin } = body as { githubLogin: string };

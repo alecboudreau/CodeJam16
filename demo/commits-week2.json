@@ -1,1 +1,506 @@
-[]
+[
+  {
+    "sha": "315a6694f8b3930dcc629184c8475c078024bf2a",
+    "authorLogin": "alex-demo",
+    "authorName": "Alex Chen",
+    "authorEmail": "alex-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Charge endpoint with Stripe payment intents",
+    "committedAt": "2026-11-09T14:20:00Z",
+    "files": [
+      "backend/payments/charge.ts",
+      "backend/payments/index.ts",
+      "backend/payments/validate.ts"
+    ],
+    "diff": "diff --git a/backend/payments/charge.ts b/backend/payments/charge.ts\n@@ -1,3 +1,22 @@\n-export async function charge() {\n-  throw new Error('not implemented')\n+import { stripe } from './stripe'\n+import { validateCharge } from './validate'\n+\n+export interface ChargeRequest {\n+  amountCents: number\n+  currency: string\n+  cardToken: string\n }\n+\n+export async function charge(req: ChargeRequest) {\n+  const problem = validateCharge(req)\n+  if (problem) return { ok: false as const, error: problem }\n+\n+  const intent = await stripe.paymentIntents.create({\n+    amount: req.amountCents,\n+    currency: req.currency.toLowerCase(),\n+    payment_method: req.cardToken,\n+    confirm: true,\n+    automatic_payment_methods: { enabled: true, allow_redirects: 'never' },\n+  })\n+  return { ok: true as const, id: intent.id, status: intent.status }\n+}\ndiff --git a/backend/payments/index.ts b/backend/payments/index.ts\n@@ -1,8 +1,10 @@\n import express from 'express'\n import { charge } from './charge'\n+import { refund } from './refund'\n \n export const payments = express.Router()\n \n payments.post('/charge', async (req, res) => {\n-  res.status(501).json({ error: 'not implemented' })\n+  const result = await charge(req.body)\n+  res.status(result.ok ? 201 : 400).json(result)\n })\ndiff --git a/backend/payments/validate.ts b/backend/payments/validate.ts\n@@ -0,0 +1,3 @@\n+export function validateCharge(_req: unknown): string | null {\n+  return null\n+}",
+    "after": {
+      "backend/payments/charge.ts": "import { stripe } from './stripe'\nimport { validateCharge } from './validate'\n\nexport interface ChargeRequest {\n  amountCents: number\n  currency: string\n  cardToken: string\n}\n\nexport async function charge(req: ChargeRequest) {\n  const problem = validateCharge(req)\n  if (problem) return { ok: false as const, error: problem }\n\n  const intent = await stripe.paymentIntents.create({\n    amount: req.amountCents,\n    currency: req.currency.toLowerCase(),\n    payment_method: req.cardToken,\n    confirm: true,\n    automatic_payment_methods: { enabled: true, allow_redirects: 'never' },\n  })\n  return { ok: true as const, id: intent.id, status: intent.status }\n}\n",
+      "backend/payments/index.ts": "import express from 'express'\nimport { charge } from './charge'\nimport { refund } from './refund'\n\nexport const payments = express.Router()\n\npayments.post('/charge', async (req, res) => {\n  const result = await charge(req.body)\n  res.status(result.ok ? 201 : 400).json(result)\n})\n",
+      "backend/payments/validate.ts": "export function validateCharge(_req: unknown): string | null {\n  return null\n}\n"
+    }
+  },
+  {
+    "sha": "2029bc07e9dcb7c5618b745a750e79f33942ee27",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Format settings files",
+    "committedAt": "2026-11-09T15:02:00Z",
+    "files": [
+      "frontend/settings/SettingsPage.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/SettingsPage.tsx b/frontend/settings/SettingsPage.tsx\n@@ -1,5 +1,5 @@\n-import { useState } from 'react'\n-import { PreferencesForm } from './PreferencesForm'\n-import { loadPrefs, savePrefs } from './settingsApi'\n+import { useState } from \"react\"\n+import { PreferencesForm } from \"./PreferencesForm\"\n+import { loadPrefs, savePrefs } from \"./settingsApi\"\n \n export function SettingsPage() {",
+    "after": {
+      "frontend/settings/SettingsPage.tsx": "import { useState } from \"react\"\nimport { PreferencesForm } from \"./PreferencesForm\"\nimport { loadPrefs, savePrefs } from \"./settingsApi\"\n\nexport function SettingsPage() {\n  const [prefs, setPrefs] = useState(loadPrefs())\n  return (\n    <section>\n      <h2>Settings</h2>\n      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n    </section>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "b826515e3b6c48986c8d09182777e7abbb38630d",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Fix indentation",
+    "committedAt": "2026-11-09T15:09:00Z",
+    "files": [
+      "frontend/settings/PreferencesForm.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/PreferencesForm.tsx b/frontend/settings/PreferencesForm.tsx\n@@ -1,3 +1,3 @@\n-import type { Prefs } from './settingsApi'\n+import type { Prefs } from \"./settingsApi\"\n \n export function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n@@ -8,5 +8,5 @@\n         <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n       </label>\n-      <button type='submit'>Save</button>\n+      <button type=\"submit\">Save</button>\n     </form>\n   )",
+    "after": {
+      "frontend/settings/PreferencesForm.tsx": "import type { Prefs } from \"./settingsApi\"\n\nexport function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n  return (\n    <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n      <label>\n        Business name\n        <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n      </label>\n      <button type=\"submit\">Save</button>\n    </form>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "7cb11032ccdb8438062ebeb4f26bc696d2ccfd70",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Use double quotes",
+    "committedAt": "2026-11-09T15:15:00Z",
+    "files": [
+      "frontend/settings/settingsApi.ts"
+    ],
+    "diff": "diff --git a/frontend/settings/settingsApi.ts b/frontend/settings/settingsApi.ts\n@@ -1,6 +1,6 @@\n export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n \n-const key = 'paylite-settings'\n-const defaults: Prefs = { businessName: '', currency: 'CAD', emailReceipts: true }\n+const key = \"paylite-settings\"\n+const defaults: Prefs = { businessName: \"\", currency: \"CAD\", emailReceipts: true }\n \n export function loadPrefs(): Prefs {\n@@ -10,4 +10,4 @@\n export function savePrefs(prefs: Prefs) {\n   // TODO: persist preferences (key: paylite-settings)\n-  console.log('save', key, prefs)\n+  console.log(\"save\", key, prefs)\n }",
+    "after": {
+      "frontend/settings/settingsApi.ts": "export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n\nconst key = \"paylite-settings\"\nconst defaults: Prefs = { businessName: \"\", currency: \"CAD\", emailReceipts: true }\n\nexport function loadPrefs(): Prefs {\n  return defaults\n}\n\nexport function savePrefs(prefs: Prefs) {\n  // TODO: persist preferences (key: paylite-settings)\n  console.log(\"save\", key, prefs)\n}\n"
+    }
+  },
+  {
+    "sha": "08fb2bbc25f1864d7b43e20ddffbb4b580c8b83c",
+    "authorLogin": "priya-demo",
+    "authorName": "Priya Nair",
+    "authorEmail": "priya-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Checkout form layout",
+    "committedAt": "2026-11-09T20:45:00Z",
+    "files": [
+      "frontend/checkout/CheckoutForm.tsx"
+    ],
+    "diff": "diff --git a/frontend/checkout/CheckoutForm.tsx b/frontend/checkout/CheckoutForm.tsx\n@@ -0,0 +1,18 @@\n+import { useState } from 'react'\n+\n+export function CheckoutForm({ onPaid }: { onPaid: (id: string) => void }) {\n+  const [amount, setAmount] = useState('')\n+  const [card, setCard] = useState('')\n+  const [expiry, setExpiry] = useState('')\n+  const [cvc, setCvc] = useState('')\n+\n+  return (\n+    <form className='checkout'>\n+      <label>Amount <input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>\n+      <label>Card number <input value={card} onChange={(e) => setCard(e.target.value)} /></label>\n+      <label>Expiry <input value={expiry} placeholder='MM/YY' onChange={(e) => setExpiry(e.target.value)} /></label>\n+      <label>CVC <input value={cvc} onChange={(e) => setCvc(e.target.value)} /></label>\n+      <button type='submit'>Pay</button>\n+    </form>\n+  )\n+}",
+    "after": {
+      "frontend/checkout/CheckoutForm.tsx": "import { useState } from 'react'\n\nexport function CheckoutForm({ onPaid }: { onPaid: (id: string) => void }) {\n  const [amount, setAmount] = useState('')\n  const [card, setCard] = useState('')\n  const [expiry, setExpiry] = useState('')\n  const [cvc, setCvc] = useState('')\n\n  return (\n    <form className='checkout'>\n      <label>Amount <input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>\n      <label>Card number <input value={card} onChange={(e) => setCard(e.target.value)} /></label>\n      <label>Expiry <input value={expiry} placeholder='MM/YY' onChange={(e) => setExpiry(e.target.value)} /></label>\n      <label>CVC <input value={cvc} onChange={(e) => setCvc(e.target.value)} /></label>\n      <button type='submit'>Pay</button>\n    </form>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "0b19af2efeac94b14346a8ec129c61e2f72d50a0",
+    "authorLogin": "alex-demo",
+    "authorName": "Alex Chen",
+    "authorEmail": "alex-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Validate amount, currency and card token",
+    "committedAt": "2026-11-10T13:30:00Z",
+    "files": [
+      "backend/payments/validate.ts"
+    ],
+    "diff": "diff --git a/backend/payments/validate.ts b/backend/payments/validate.ts\n@@ -1,3 +1,9 @@\n-export function validateCharge(_req: unknown): string | null {\n+const CURRENCIES = ['CAD', 'USD', 'EUR']\n+\n+export function validateCharge(req: { amountCents: number, currency: string, cardToken: string }): string | null {\n+  if (!Number.isInteger(req.amountCents) || req.amountCents <= 0) return 'Amount must be a positive number of cents'\n+  if (req.amountCents > 1_000_000) return 'Amount is over the 10,000 limit'\n+  if (!CURRENCIES.includes(req.currency.toUpperCase())) return `Unsupported currency: ${req.currency}`\n+  if (!req.cardToken?.startsWith('pm_')) return 'Invalid card token'\n   return null\n }",
+    "after": {
+      "backend/payments/validate.ts": "const CURRENCIES = ['CAD', 'USD', 'EUR']\n\nexport function validateCharge(req: { amountCents: number, currency: string, cardToken: string }): string | null {\n  if (!Number.isInteger(req.amountCents) || req.amountCents <= 0) return 'Amount must be a positive number of cents'\n  if (req.amountCents > 1_000_000) return 'Amount is over the 10,000 limit'\n  if (!CURRENCIES.includes(req.currency.toUpperCase())) return `Unsupported currency: ${req.currency}`\n  if (!req.cardToken?.startsWith('pm_')) return 'Invalid card token'\n  return null\n}\n"
+    }
+  },
+  {
+    "sha": "6961e7199b1a0334105df4cf53e95e686f2aad44",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Prettier pass",
+    "committedAt": "2026-11-10T16:00:00Z",
+    "files": [
+      "frontend/settings/SettingsPage.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/SettingsPage.tsx b/frontend/settings/SettingsPage.tsx\n@@ -1,5 +1,5 @@\n-import { useState } from \"react\"\n-import { PreferencesForm } from \"./PreferencesForm\"\n-import { loadPrefs, savePrefs } from \"./settingsApi\"\n+import { useState } from \"react\";\n+import { PreferencesForm } from \"./PreferencesForm\";\n+import { loadPrefs, savePrefs } from \"./settingsApi\";\n \n export function SettingsPage() {",
+    "after": {
+      "frontend/settings/SettingsPage.tsx": "import { useState } from \"react\";\nimport { PreferencesForm } from \"./PreferencesForm\";\nimport { loadPrefs, savePrefs } from \"./settingsApi\";\n\nexport function SettingsPage() {\n  const [prefs, setPrefs] = useState(loadPrefs())\n  return (\n    <section>\n      <h2>Settings</h2>\n      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n    </section>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "a80bb29732c2345c84a5cf1a1507b0a1af74442c",
+    "authorLogin": "jordan@laptop.local",
+    "authorName": "Jordan",
+    "authorEmail": "jordan@laptop.local",
+    "coAuthors": [],
+    "message": "Tidy imports",
+    "committedAt": "2026-11-10T16:04:00Z",
+    "files": [
+      "frontend/settings/PreferencesForm.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/PreferencesForm.tsx b/frontend/settings/PreferencesForm.tsx\n@@ -1,3 +1,3 @@\n-import type { Prefs } from \"./settingsApi\"\n+import type { Prefs } from \"./settingsApi\";\n \n export function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {",
+    "after": {
+      "frontend/settings/PreferencesForm.tsx": "import type { Prefs } from \"./settingsApi\";\n\nexport function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n  return (\n    <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n      <label>\n        Business name\n        <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n      </label>\n      <button type=\"submit\">Save</button>\n    </form>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "dc72c50cff3e4f11fa5ec4d17d0d72b7ec29a92e",
+    "authorLogin": "jordan@laptop.local",
+    "authorName": "Jordan",
+    "authorEmail": "jordan@laptop.local",
+    "coAuthors": [],
+    "message": "Whitespace cleanup",
+    "committedAt": "2026-11-10T16:11:00Z",
+    "files": [
+      "frontend/settings/SettingsPage.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/SettingsPage.tsx b/frontend/settings/SettingsPage.tsx\n@@ -4,10 +4,10 @@\n \n export function SettingsPage() {\n-  const [prefs, setPrefs] = useState(loadPrefs())\n-  return (\n-    <section>\n-      <h2>Settings</h2>\n-      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n-    </section>\n-  )\n+    const [prefs, setPrefs] = useState(loadPrefs())\n+    return (\n+        <section>\n+            <h2>Settings</h2>\n+            <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n+        </section>\n+    )\n }",
+    "after": {
+      "frontend/settings/SettingsPage.tsx": "import { useState } from \"react\";\nimport { PreferencesForm } from \"./PreferencesForm\";\nimport { loadPrefs, savePrefs } from \"./settingsApi\";\n\nexport function SettingsPage() {\n    const [prefs, setPrefs] = useState(loadPrefs())\n    return (\n        <section>\n            <h2>Settings</h2>\n            <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n        </section>\n    )\n}\n"
+    }
+  },
+  {
+    "sha": "a614ba96dc6c8ee34f91962482be722911f31198",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Reformat",
+    "committedAt": "2026-11-10T16:20:00Z",
+    "files": [
+      "frontend/settings/PreferencesForm.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/PreferencesForm.tsx b/frontend/settings/PreferencesForm.tsx\n@@ -2,12 +2,12 @@\n \n export function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n-  return (\n-    <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n-      <label>\n-        Business name\n-        <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n-      </label>\n-      <button type=\"submit\">Save</button>\n-    </form>\n-  )\n+    return (\n+        <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n+            <label>\n+                Business name\n+                <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n+            </label>\n+            <button type=\"submit\">Save</button>\n+        </form>\n+    )\n }",
+    "after": {
+      "frontend/settings/PreferencesForm.tsx": "import type { Prefs } from \"./settingsApi\";\n\nexport function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n    return (\n        <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n            <label>\n                Business name\n                <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n            </label>\n            <button type=\"submit\">Save</button>\n        </form>\n    )\n}\n"
+    }
+  },
+  {
+    "sha": "fa76ecbd81612baa754abb91c0f2269ef5d0705f",
+    "authorLogin": "priya-demo",
+    "authorName": "Priya Nair",
+    "authorEmail": "priya-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Bump dependencies",
+    "committedAt": "2026-11-10T18:10:00Z",
+    "files": [
+      "package-lock.json"
+    ],
+    "diff": "diff --git a/package-lock.json b/package-lock.json\n@@ -3,5 +3,5 @@\n   \"lockfileVersion\": 3,\n   \"packages\": {\n-    \"node_modules/react\": { \"version\": \"18.3.1\" },\n+    \"node_modules/react\": { \"version\": \"18.3.2\" },\n     \"node_modules/stripe\": { \"version\": \"17.4.0\" }\n   }",
+    "after": {
+      "package-lock.json": "{\n  \"name\": \"paylite\",\n  \"lockfileVersion\": 3,\n  \"packages\": {\n    \"node_modules/react\": { \"version\": \"18.3.2\" },\n    \"node_modules/stripe\": { \"version\": \"17.4.0\" }\n  }\n}\n"
+    }
+  },
+  {
+    "sha": "691038a1730e6de47cfee21c9f0c35ae1bb2891e",
+    "authorLogin": "priya-demo",
+    "authorName": "Priya Nair",
+    "authorEmail": "priya-demo@users.noreply.github.com",
+    "coAuthors": [
+      "Alex Chen <alex-demo@users.noreply.github.com>"
+    ],
+    "message": "Checkout form validation and submit\n\nCo-authored-by: Alex Chen <alex-demo@users.noreply.github.com>",
+    "committedAt": "2026-11-11T14:00:00Z",
+    "files": [
+      "frontend/checkout/CheckoutForm.tsx"
+    ],
+    "diff": "diff --git a/frontend/checkout/CheckoutForm.tsx b/frontend/checkout/CheckoutForm.tsx\n@@ -1,3 +1,12 @@\n import { useState } from 'react'\n+\n+function errorsFor(amount: string, card: string, expiry: string, cvc: string) {\n+  const errors: Record<string, string> = {}\n+  if (!/^\\d+(\\.\\d{1,2})?$/.test(amount) || Number(amount) <= 0) errors.amount = 'Enter an amount like 25.00'\n+  if (card.replace(/\\s/g, '').length < 12) errors.card = 'Card number looks too short'\n+  if (!/^(0[1-9]|1[0-2])\\/\\d{2}$/.test(expiry)) errors.expiry = 'Use MM/YY'\n+  if (!/^\\d{3,4}$/.test(cvc)) errors.cvc = 'CVC is 3 or 4 digits'\n+  return errors\n+}\n \n export function CheckoutForm({ onPaid }: { onPaid: (id: string) => void }) {\n@@ -6,11 +15,30 @@\n   const [expiry, setExpiry] = useState('')\n   const [cvc, setCvc] = useState('')\n+  const [submitted, setSubmitted] = useState(false)\n+  const errors = errorsFor(amount, card, expiry, cvc)\n+\n+  async function submit(e: React.FormEvent) {\n+    e.preventDefault()\n+    setSubmitted(true)\n+    if (Object.keys(errors).length) return\n+    const res = await fetch('/payments/charge', {\n+      method: 'POST',\n+      headers: { 'Content-Type': 'application/json' },\n+      body: JSON.stringify({ amountCents: Math.round(Number(amount) * 100), currency: 'CAD', cardToken: 'pm_card_visa' }),\n+    })\n+    const body = await res.json()\n+    if (body.ok) onPaid(body.id)\n+  }\n \n   return (\n-    <form className='checkout'>\n+    <form className='checkout' onSubmit={submit} noValidate>\n       <label>Amount <input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>\n+      {submitted && errors.amount && <p className='error'>{errors.amount}</p>}\n       <label>Card number <input value={card} onChange={(e) => setCard(e.target.value)} /></label>\n+      {submitted && errors.card && <p className='error'>{errors.card}</p>}\n       <label>Expiry <input value={expiry} placeholder='MM/YY' onChange={(e) => setExpiry(e.target.value)} /></label>\n+      {submitted && errors.expiry && <p className='error'>{errors.expiry}</p>}\n       <label>CVC <input value={cvc} onChange={(e) => setCvc(e.target.value)} /></label>\n+      {submitted && errors.cvc && <p className='error'>{errors.cvc}</p>}\n       <button type='submit'>Pay</button>\n     </form>",
+    "after": {
+      "frontend/checkout/CheckoutForm.tsx": "import { useState } from 'react'\n\nfunction errorsFor(amount: string, card: string, expiry: string, cvc: string) {\n  const errors: Record<string, string> = {}\n  if (!/^\\d+(\\.\\d{1,2})?$/.test(amount) || Number(amount) <= 0) errors.amount = 'Enter an amount like 25.00'\n  if (card.replace(/\\s/g, '').length < 12) errors.card = 'Card number looks too short'\n  if (!/^(0[1-9]|1[0-2])\\/\\d{2}$/.test(expiry)) errors.expiry = 'Use MM/YY'\n  if (!/^\\d{3,4}$/.test(cvc)) errors.cvc = 'CVC is 3 or 4 digits'\n  return errors\n}\n\nexport function CheckoutForm({ onPaid }: { onPaid: (id: string) => void }) {\n  const [amount, setAmount] = useState('')\n  const [card, setCard] = useState('')\n  const [expiry, setExpiry] = useState('')\n  const [cvc, setCvc] = useState('')\n  const [submitted, setSubmitted] = useState(false)\n  const errors = errorsFor(amount, card, expiry, cvc)\n\n  async function submit(e: React.FormEvent) {\n    e.preventDefault()\n    setSubmitted(true)\n    if (Object.keys(errors).length) return\n    const res = await fetch('/payments/charge', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({ amountCents: Math.round(Number(amount) * 100), currency: 'CAD', cardToken: 'pm_card_visa' }),\n    })\n    const body = await res.json()\n    if (body.ok) onPaid(body.id)\n  }\n\n  return (\n    <form className='checkout' onSubmit={submit} noValidate>\n      <label>Amount <input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>\n      {submitted && errors.amount && <p className='error'>{errors.amount}</p>}\n      <label>Card number <input value={card} onChange={(e) => setCard(e.target.value)} /></label>\n      {submitted && errors.card && <p className='error'>{errors.card}</p>}\n      <label>Expiry <input value={expiry} placeholder='MM/YY' onChange={(e) => setExpiry(e.target.value)} /></label>\n      {submitted && errors.expiry && <p className='error'>{errors.expiry}</p>}\n      <label>CVC <input value={cvc} onChange={(e) => setCvc(e.target.value)} /></label>\n      {submitted && errors.cvc && <p className='error'>{errors.cvc}</p>}\n      <button type='submit'>Pay</button>\n    </form>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "c5581f03a1610968fc66654445702a32a08c2378",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Lint fixes",
+    "committedAt": "2026-11-11T15:30:00Z",
+    "files": [
+      "frontend/settings/settingsApi.ts"
+    ],
+    "diff": "diff --git a/frontend/settings/settingsApi.ts b/frontend/settings/settingsApi.ts\n@@ -5,9 +5,9 @@\n \n export function loadPrefs(): Prefs {\n-  return defaults\n+    return defaults\n }\n \n export function savePrefs(prefs: Prefs) {\n-  // TODO: persist preferences (key: paylite-settings)\n-  console.log(\"save\", key, prefs)\n+    // TODO: persist preferences (key: paylite-settings)\n+    console.log(\"save\", key, prefs)\n }",
+    "after": {
+      "frontend/settings/settingsApi.ts": "export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n\nconst key = \"paylite-settings\"\nconst defaults: Prefs = { businessName: \"\", currency: \"CAD\", emailReceipts: true }\n\nexport function loadPrefs(): Prefs {\n    return defaults\n}\n\nexport function savePrefs(prefs: Prefs) {\n    // TODO: persist preferences (key: paylite-settings)\n    console.log(\"save\", key, prefs)\n}\n"
+    }
+  },
+  {
+    "sha": "c9000d559666739d04f6b7a8244541f53ae6f793",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Style: semicolons",
+    "committedAt": "2026-11-11T15:41:00Z",
+    "files": [
+      "frontend/settings/SettingsPage.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/SettingsPage.tsx b/frontend/settings/SettingsPage.tsx\n@@ -4,10 +4,10 @@\n \n export function SettingsPage() {\n-    const [prefs, setPrefs] = useState(loadPrefs())\n-    return (\n-        <section>\n-            <h2>Settings</h2>\n-            <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n-        </section>\n-    )\n+  const [prefs, setPrefs] = useState(loadPrefs())\n+  return (\n+    <section>\n+      <h2>Settings</h2>\n+      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n+    </section>\n+  )\n }",
+    "after": {
+      "frontend/settings/SettingsPage.tsx": "import { useState } from \"react\";\nimport { PreferencesForm } from \"./PreferencesForm\";\nimport { loadPrefs, savePrefs } from \"./settingsApi\";\n\nexport function SettingsPage() {\n  const [prefs, setPrefs] = useState(loadPrefs())\n  return (\n    <section>\n      <h2>Settings</h2>\n      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n    </section>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "b96ce996aa50aa09ef0bdf824a6ae1a549497757",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Format settings files",
+    "committedAt": "2026-11-11T16:02:00Z",
+    "files": [
+      "frontend/settings/PreferencesForm.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/PreferencesForm.tsx b/frontend/settings/PreferencesForm.tsx\n@@ -2,12 +2,12 @@\n \n export function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n-    return (\n-        <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n-            <label>\n-                Business name\n-                <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n-            </label>\n-            <button type=\"submit\">Save</button>\n-        </form>\n-    )\n+  return (\n+    <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n+      <label>\n+        Business name\n+        <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n+      </label>\n+      <button type=\"submit\">Save</button>\n+    </form>\n+  )\n }",
+    "after": {
+      "frontend/settings/PreferencesForm.tsx": "import type { Prefs } from \"./settingsApi\";\n\nexport function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n  return (\n    <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n      <label>\n        Business name\n        <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n      </label>\n      <button type=\"submit\">Save</button>\n    </form>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "3a9b987455dd1d2c855f4c76b4dd499d87aa51a3",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Fix indentation",
+    "committedAt": "2026-11-11T16:30:00Z",
+    "files": [
+      "frontend/settings/settingsApi.ts"
+    ],
+    "diff": "diff --git a/frontend/settings/settingsApi.ts b/frontend/settings/settingsApi.ts\n@@ -5,9 +5,9 @@\n \n export function loadPrefs(): Prefs {\n-    return defaults\n+  return defaults\n }\n \n export function savePrefs(prefs: Prefs) {\n-    // TODO: persist preferences (key: paylite-settings)\n-    console.log(\"save\", key, prefs)\n+  // TODO: persist preferences (key: paylite-settings)\n+  console.log(\"save\", key, prefs)\n }",
+    "after": {
+      "frontend/settings/settingsApi.ts": "export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n\nconst key = \"paylite-settings\"\nconst defaults: Prefs = { businessName: \"\", currency: \"CAD\", emailReceipts: true }\n\nexport function loadPrefs(): Prefs {\n  return defaults\n}\n\nexport function savePrefs(prefs: Prefs) {\n  // TODO: persist preferences (key: paylite-settings)\n  console.log(\"save\", key, prefs)\n}\n"
+    }
+  },
+  {
+    "sha": "4e2eb1231edab52caf78d0c7dff0d7c67fc000eb",
+    "authorLogin": "alex-demo",
+    "authorName": "Alex Chen",
+    "authorEmail": "alex-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Refund endpoint (full and partial)",
+    "committedAt": "2026-11-11T21:15:00Z",
+    "files": [
+      "backend/payments/refund.ts",
+      "backend/payments/index.ts"
+    ],
+    "diff": "diff --git a/backend/payments/refund.ts b/backend/payments/refund.ts\n@@ -0,0 +1,9 @@\n+import { stripe } from './stripe'\n+\n+export async function refund(req: { paymentId: string, amountCents?: number }) {\n+  if (!req.paymentId) return { ok: false as const, error: 'paymentId is required' }\n+  if (req.amountCents !== undefined && req.amountCents <= 0) return { ok: false as const, error: 'Refund amount must be positive' }\n+\n+  const r = await stripe.refunds.create({ payment_intent: req.paymentId, amount: req.amountCents })\n+  return { ok: true as const, id: r.id, status: r.status }\n+}\ndiff --git a/backend/payments/index.ts b/backend/payments/index.ts\n@@ -9,2 +9,7 @@\n   res.status(result.ok ? 201 : 400).json(result)\n })\n+\n+payments.post('/refund', async (req, res) => {\n+  const result = await refund(req.body)\n+  res.status(result.ok ? 201 : 400).json(result)\n+})",
+    "after": {
+      "backend/payments/refund.ts": "import { stripe } from './stripe'\n\nexport async function refund(req: { paymentId: string, amountCents?: number }) {\n  if (!req.paymentId) return { ok: false as const, error: 'paymentId is required' }\n  if (req.amountCents !== undefined && req.amountCents <= 0) return { ok: false as const, error: 'Refund amount must be positive' }\n\n  const r = await stripe.refunds.create({ payment_intent: req.paymentId, amount: req.amountCents })\n  return { ok: true as const, id: r.id, status: r.status }\n}\n",
+      "backend/payments/index.ts": "import express from 'express'\nimport { charge } from './charge'\nimport { refund } from './refund'\n\nexport const payments = express.Router()\n\npayments.post('/charge', async (req, res) => {\n  const result = await charge(req.body)\n  res.status(result.ok ? 201 : 400).json(result)\n})\n\npayments.post('/refund', async (req, res) => {\n  const result = await refund(req.body)\n  res.status(result.ok ? 201 : 400).json(result)\n})\n"
+    }
+  },
+  {
+    "sha": "35d4e225044e5f8b8c4f31c9a176e62181964da1",
+    "authorLogin": "jordan@laptop.local",
+    "authorName": "Jordan",
+    "authorEmail": "jordan@laptop.local",
+    "coAuthors": [],
+    "message": "Use double quotes",
+    "committedAt": "2026-11-12T14:10:00Z",
+    "files": [
+      "frontend/settings/SettingsPage.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/SettingsPage.tsx b/frontend/settings/SettingsPage.tsx\n@@ -1,5 +1,5 @@\n-import { useState } from \"react\";\n-import { PreferencesForm } from \"./PreferencesForm\";\n-import { loadPrefs, savePrefs } from \"./settingsApi\";\n+import { useState } from 'react';\n+import { PreferencesForm } from './PreferencesForm';\n+import { loadPrefs, savePrefs } from './settingsApi';\n \n export function SettingsPage() {",
+    "after": {
+      "frontend/settings/SettingsPage.tsx": "import { useState } from 'react';\nimport { PreferencesForm } from './PreferencesForm';\nimport { loadPrefs, savePrefs } from './settingsApi';\n\nexport function SettingsPage() {\n  const [prefs, setPrefs] = useState(loadPrefs())\n  return (\n    <section>\n      <h2>Settings</h2>\n      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n    </section>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "182c10162ab6f10d091c7bc6de2f3d95e9e95bd6",
+    "authorLogin": "jordan@laptop.local",
+    "authorName": "Jordan",
+    "authorEmail": "jordan@laptop.local",
+    "coAuthors": [],
+    "message": "Prettier pass",
+    "committedAt": "2026-11-12T14:22:00Z",
+    "files": [
+      "frontend/settings/PreferencesForm.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/PreferencesForm.tsx b/frontend/settings/PreferencesForm.tsx\n@@ -1,3 +1,3 @@\n-import type { Prefs } from \"./settingsApi\";\n+import type { Prefs } from './settingsApi';\n \n export function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n@@ -8,5 +8,5 @@\n         <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n       </label>\n-      <button type=\"submit\">Save</button>\n+      <button type='submit'>Save</button>\n     </form>\n   )",
+    "after": {
+      "frontend/settings/PreferencesForm.tsx": "import type { Prefs } from './settingsApi';\n\nexport function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n  return (\n    <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n      <label>\n        Business name\n        <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n      </label>\n      <button type='submit'>Save</button>\n    </form>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "88fbb9521c95345104ef030c16fd2a978e676d15",
+    "authorLogin": "jordan@laptop.local",
+    "authorName": "Jordan",
+    "authorEmail": "jordan@laptop.local",
+    "coAuthors": [],
+    "message": "Tidy imports",
+    "committedAt": "2026-11-12T14:35:00Z",
+    "files": [
+      "frontend/settings/settingsApi.ts"
+    ],
+    "diff": "diff --git a/frontend/settings/settingsApi.ts b/frontend/settings/settingsApi.ts\n@@ -1,6 +1,6 @@\n export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n \n-const key = \"paylite-settings\"\n-const defaults: Prefs = { businessName: \"\", currency: \"CAD\", emailReceipts: true }\n+const key = 'paylite-settings'\n+const defaults: Prefs = { businessName: '', currency: 'CAD', emailReceipts: true }\n \n export function loadPrefs(): Prefs {\n@@ -10,4 +10,4 @@\n export function savePrefs(prefs: Prefs) {\n   // TODO: persist preferences (key: paylite-settings)\n-  console.log(\"save\", key, prefs)\n+  console.log('save', key, prefs)\n }",
+    "after": {
+      "frontend/settings/settingsApi.ts": "export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n\nconst key = 'paylite-settings'\nconst defaults: Prefs = { businessName: '', currency: 'CAD', emailReceipts: true }\n\nexport function loadPrefs(): Prefs {\n  return defaults\n}\n\nexport function savePrefs(prefs: Prefs) {\n  // TODO: persist preferences (key: paylite-settings)\n  console.log('save', key, prefs)\n}\n"
+    }
+  },
+  {
+    "sha": "68f825ddc680e802ac5a8ad700c03da308c7b786",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Consistent quotes",
+    "committedAt": "2026-11-12T15:05:00Z",
+    "files": [
+      "frontend/settings/SettingsPage.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/SettingsPage.tsx b/frontend/settings/SettingsPage.tsx\n@@ -1,5 +1,5 @@\n-import { useState } from 'react';\n-import { PreferencesForm } from './PreferencesForm';\n-import { loadPrefs, savePrefs } from './settingsApi';\n+import { useState } from 'react'\n+import { PreferencesForm } from './PreferencesForm'\n+import { loadPrefs, savePrefs } from './settingsApi'\n \n export function SettingsPage() {",
+    "after": {
+      "frontend/settings/SettingsPage.tsx": "import { useState } from 'react'\nimport { PreferencesForm } from './PreferencesForm'\nimport { loadPrefs, savePrefs } from './settingsApi'\n\nexport function SettingsPage() {\n  const [prefs, setPrefs] = useState(loadPrefs())\n  return (\n    <section>\n      <h2>Settings</h2>\n      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n    </section>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "4b3744e1d9bdfdee2f016f3a3a38f74b417f3392",
+    "authorLogin": "priya-demo",
+    "authorName": "Priya Nair",
+    "authorEmail": "priya-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Payment confirmation screen",
+    "committedAt": "2026-11-12T19:40:00Z",
+    "files": [
+      "frontend/checkout/Confirmation.tsx"
+    ],
+    "diff": "diff --git a/frontend/checkout/Confirmation.tsx b/frontend/checkout/Confirmation.tsx\n@@ -0,0 +1,10 @@\n+export function Confirmation({ paymentId, onDone }: { paymentId: string, onDone: () => void }) {\n+  return (\n+    <section className='confirmation' aria-live='polite'>\n+      <h2>Payment received</h2>\n+      <p>Reference: <code>{paymentId}</code></p>\n+      <p>A receipt is on its way by email.</p>\n+      <button onClick={onDone}>New payment</button>\n+    </section>\n+  )\n+}",
+    "after": {
+      "frontend/checkout/Confirmation.tsx": "export function Confirmation({ paymentId, onDone }: { paymentId: string, onDone: () => void }) {\n  return (\n    <section className='confirmation' aria-live='polite'>\n      <h2>Payment received</h2>\n      <p>Reference: <code>{paymentId}</code></p>\n      <p>A receipt is on its way by email.</p>\n      <button onClick={onDone}>New payment</button>\n    </section>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "6bdf3143c26f9896876a792f157f1658cdaddfbd",
+    "authorLogin": "alex-demo",
+    "authorName": "Alex Chen",
+    "authorEmail": "alex-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Tests for charge validation",
+    "committedAt": "2026-11-13T15:00:00Z",
+    "files": [
+      "backend/payments/charge.test.ts"
+    ],
+    "diff": "diff --git a/backend/payments/charge.test.ts b/backend/payments/charge.test.ts\n@@ -0,0 +1,14 @@\n+import { describe, expect, it } from 'vitest'\n+import { validateCharge } from './validate'\n+\n+const ok = { amountCents: 2500, currency: 'CAD', cardToken: 'pm_card_visa' }\n+\n+describe('validateCharge', () => {\n+  it('accepts a normal charge', () => expect(validateCharge(ok)).toBeNull())\n+  it('rejects zero and negative amounts', () => {\n+    expect(validateCharge({ ...ok, amountCents: 0 })).toMatch(/positive/)\n+    expect(validateCharge({ ...ok, amountCents: -5 })).toMatch(/positive/)\n+  })\n+  it('rejects unsupported currencies', () => expect(validateCharge({ ...ok, currency: 'XYZ' })).toMatch(/Unsupported/))\n+  it('rejects bad card tokens', () => expect(validateCharge({ ...ok, cardToken: 'card_1' })).toMatch(/card token/))\n+})",
+    "after": {
+      "backend/payments/charge.test.ts": "import { describe, expect, it } from 'vitest'\nimport { validateCharge } from './validate'\n\nconst ok = { amountCents: 2500, currency: 'CAD', cardToken: 'pm_card_visa' }\n\ndescribe('validateCharge', () => {\n  it('accepts a normal charge', () => expect(validateCharge(ok)).toBeNull())\n  it('rejects zero and negative amounts', () => {\n    expect(validateCharge({ ...ok, amountCents: 0 })).toMatch(/positive/)\n    expect(validateCharge({ ...ok, amountCents: -5 })).toMatch(/positive/)\n  })\n  it('rejects unsupported currencies', () => expect(validateCharge({ ...ok, currency: 'XYZ' })).toMatch(/Unsupported/))\n  it('rejects bad card tokens', () => expect(validateCharge({ ...ok, cardToken: 'card_1' })).toMatch(/card token/))\n})\n"
+    }
+  },
+  {
+    "sha": "108e2cfe1a4e0dfdcb7195cfd8560f1dae69921f",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Whitespace cleanup",
+    "committedAt": "2026-11-13T16:12:00Z",
+    "files": [
+      "frontend/settings/PreferencesForm.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/PreferencesForm.tsx b/frontend/settings/PreferencesForm.tsx\n@@ -1,3 +1,3 @@\n-import type { Prefs } from './settingsApi';\n+import type { Prefs } from './settingsApi'\n \n export function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {",
+    "after": {
+      "frontend/settings/PreferencesForm.tsx": "import type { Prefs } from './settingsApi'\n\nexport function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n  return (\n    <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n      <label>\n        Business name\n        <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n      </label>\n      <button type='submit'>Save</button>\n    </form>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "f4de21e2dd2dc251b39897f5e91c189e27a734be",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Lint fixes",
+    "committedAt": "2026-11-13T16:20:00Z",
+    "files": [
+      "frontend/settings/SettingsPage.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/SettingsPage.tsx b/frontend/settings/SettingsPage.tsx\n@@ -1,5 +1,5 @@\n-import { useState } from 'react'\n-import { PreferencesForm } from './PreferencesForm'\n-import { loadPrefs, savePrefs } from './settingsApi'\n+import { useState } from \"react\"\n+import { PreferencesForm } from \"./PreferencesForm\"\n+import { loadPrefs, savePrefs } from \"./settingsApi\"\n \n export function SettingsPage() {",
+    "after": {
+      "frontend/settings/SettingsPage.tsx": "import { useState } from \"react\"\nimport { PreferencesForm } from \"./PreferencesForm\"\nimport { loadPrefs, savePrefs } from \"./settingsApi\"\n\nexport function SettingsPage() {\n  const [prefs, setPrefs] = useState(loadPrefs())\n  return (\n    <section>\n      <h2>Settings</h2>\n      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n    </section>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "59a1c37d89dfb7849b98fca13a751d91515f3638",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Rename key to storageKey",
+    "committedAt": "2026-11-13T16:45:00Z",
+    "files": [
+      "frontend/settings/settingsApi.ts"
+    ],
+    "diff": "diff --git a/frontend/settings/settingsApi.ts b/frontend/settings/settingsApi.ts\n@@ -1,5 +1,5 @@\n export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n \n-const key = 'paylite-settings'\n+const storageKey = 'paylite-settings'\n const defaults: Prefs = { businessName: '', currency: 'CAD', emailReceipts: true }\n \n@@ -9,5 +9,5 @@\n \n export function savePrefs(prefs: Prefs) {\n-  // TODO: persist preferences (key: paylite-settings)\n-  console.log('save', key, prefs)\n+  // TODO: persist preferences (storageKey: paylite-settings)\n+  console.log('save', storageKey, prefs)\n }",
+    "after": {
+      "frontend/settings/settingsApi.ts": "export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n\nconst storageKey = 'paylite-settings'\nconst defaults: Prefs = { businessName: '', currency: 'CAD', emailReceipts: true }\n\nexport function loadPrefs(): Prefs {\n  return defaults\n}\n\nexport function savePrefs(prefs: Prefs) {\n  // TODO: persist preferences (storageKey: paylite-settings)\n  console.log('save', storageKey, prefs)\n}\n"
+    }
+  },
+  {
+    "sha": "c73b2e084186c55c66006b4bb8028df14dc1766f",
+    "authorLogin": "jordan-demo",
+    "authorName": "Jordan Lee",
+    "authorEmail": "jordan-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Style: semicolons",
+    "committedAt": "2026-11-13T17:05:00Z",
+    "files": [
+      "frontend/settings/PreferencesForm.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/PreferencesForm.tsx b/frontend/settings/PreferencesForm.tsx\n@@ -1,3 +1,3 @@\n-import type { Prefs } from './settingsApi'\n+import type { Prefs } from \"./settingsApi\"\n \n export function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n@@ -8,5 +8,5 @@\n         <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n       </label>\n-      <button type='submit'>Save</button>\n+      <button type=\"submit\">Save</button>\n     </form>\n   )",
+    "after": {
+      "frontend/settings/PreferencesForm.tsx": "import type { Prefs } from \"./settingsApi\"\n\nexport function PreferencesForm({ value, onChange, onSave }: { value: Prefs, onChange: (p: Prefs) => void, onSave: () => void }) {\n  return (\n    <form onSubmit={(e) => { e.preventDefault(); onSave() }}>\n      <label>\n        Business name\n        <input value={value.businessName} onChange={(e) => onChange({ ...value, businessName: e.target.value })} />\n      </label>\n      <button type=\"submit\">Save</button>\n    </form>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "451ba844218dd923823f0f7ad77998fe071e5a4b",
+    "authorLogin": "jordan@laptop.local",
+    "authorName": "Jordan",
+    "authorEmail": "jordan@laptop.local",
+    "coAuthors": [],
+    "message": "Format settings files",
+    "committedAt": "2026-11-14T15:20:00Z",
+    "files": [
+      "frontend/settings/settingsApi.ts"
+    ],
+    "diff": "diff --git a/frontend/settings/settingsApi.ts b/frontend/settings/settingsApi.ts\n@@ -1,6 +1,6 @@\n export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n \n-const storageKey = 'paylite-settings'\n-const defaults: Prefs = { businessName: '', currency: 'CAD', emailReceipts: true }\n+const storageKey = \"paylite-settings\"\n+const defaults: Prefs = { businessName: \"\", currency: \"CAD\", emailReceipts: true }\n \n export function loadPrefs(): Prefs {\n@@ -10,4 +10,4 @@\n export function savePrefs(prefs: Prefs) {\n   // TODO: persist preferences (storageKey: paylite-settings)\n-  console.log('save', storageKey, prefs)\n+  console.log(\"save\", storageKey, prefs)\n }",
+    "after": {
+      "frontend/settings/settingsApi.ts": "export type Prefs = { businessName: string, currency: string, emailReceipts: boolean }\n\nconst storageKey = \"paylite-settings\"\nconst defaults: Prefs = { businessName: \"\", currency: \"CAD\", emailReceipts: true }\n\nexport function loadPrefs(): Prefs {\n  return defaults\n}\n\nexport function savePrefs(prefs: Prefs) {\n  // TODO: persist preferences (storageKey: paylite-settings)\n  console.log(\"save\", storageKey, prefs)\n}\n"
+    }
+  },
+  {
+    "sha": "af5c2aa9cf02019c04ded05c520db69aa85773f3",
+    "authorLogin": "jordan@laptop.local",
+    "authorName": "Jordan",
+    "authorEmail": "jordan@laptop.local",
+    "coAuthors": [],
+    "message": "Fix indentation",
+    "committedAt": "2026-11-14T15:28:00Z",
+    "files": [
+      "frontend/settings/SettingsPage.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/SettingsPage.tsx b/frontend/settings/SettingsPage.tsx\n@@ -1,5 +1,5 @@\n-import { useState } from \"react\"\n-import { PreferencesForm } from \"./PreferencesForm\"\n-import { loadPrefs, savePrefs } from \"./settingsApi\"\n+import { useState } from \"react\";\n+import { PreferencesForm } from \"./PreferencesForm\";\n+import { loadPrefs, savePrefs } from \"./settingsApi\";\n \n export function SettingsPage() {",
+    "after": {
+      "frontend/settings/SettingsPage.tsx": "import { useState } from \"react\";\nimport { PreferencesForm } from \"./PreferencesForm\";\nimport { loadPrefs, savePrefs } from \"./settingsApi\";\n\nexport function SettingsPage() {\n  const [prefs, setPrefs] = useState(loadPrefs())\n  return (\n    <section>\n      <h2>Settings</h2>\n      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n    </section>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "a9648ac755bb17a5b28abebe9d9c383c94515a3b",
+    "authorLogin": "jordan@laptop.local",
+    "authorName": "Jordan",
+    "authorEmail": "jordan@laptop.local",
+    "coAuthors": [],
+    "message": "Rename prefs to preferences",
+    "committedAt": "2026-11-14T15:40:00Z",
+    "files": [
+      "frontend/settings/SettingsPage.tsx"
+    ],
+    "diff": "diff --git a/frontend/settings/SettingsPage.tsx b/frontend/settings/SettingsPage.tsx\n@@ -4,9 +4,9 @@\n \n export function SettingsPage() {\n-  const [prefs, setPrefs] = useState(loadPrefs())\n+  const [preferences, setPrefs] = useState(loadPrefs())\n   return (\n     <section>\n       <h2>Settings</h2>\n-      <PreferencesForm value={prefs} onChange={setPrefs} onSave={() => savePrefs(prefs)} />\n+      <PreferencesForm value={preferences} onChange={setPrefs} onSave={() => savePrefs(preferences)} />\n     </section>\n   )",
+    "after": {
+      "frontend/settings/SettingsPage.tsx": "import { useState } from \"react\";\nimport { PreferencesForm } from \"./PreferencesForm\";\nimport { loadPrefs, savePrefs } from \"./settingsApi\";\n\nexport function SettingsPage() {\n  const [preferences, setPrefs] = useState(loadPrefs())\n  return (\n    <section>\n      <h2>Settings</h2>\n      <PreferencesForm value={preferences} onChange={setPrefs} onSave={() => savePrefs(preferences)} />\n    </section>\n  )\n}\n"
+    }
+  },
+  {
+    "sha": "d9f2032eeb524f5166469031dc26ac847f3e0b52",
+    "authorLogin": "alex-demo",
+    "authorName": "Alex Chen",
+    "authorEmail": "alex-demo@users.noreply.github.com",
+    "coAuthors": [],
+    "message": "Bump dependencies",
+    "committedAt": "2026-11-14T17:30:00Z",
+    "files": [
+      "package-lock.json"
+    ],
+    "diff": "diff --git a/package-lock.json b/package-lock.json\n@@ -4,5 +4,5 @@\n   \"packages\": {\n     \"node_modules/react\": { \"version\": \"18.3.2\" },\n-    \"node_modules/stripe\": { \"version\": \"17.4.0\" }\n+    \"node_modules/stripe\": { \"version\": \"17.4.1\" }\n   }\n }",
+    "after": {
+      "package-lock.json": "{\n  \"name\": \"paylite\",\n  \"lockfileVersion\": 3,\n  \"packages\": {\n    \"node_modules/react\": { \"version\": \"18.3.2\" },\n    \"node_modules/stripe\": { \"version\": \"17.4.1\" }\n  }\n}\n"
+    }
+  }
+]

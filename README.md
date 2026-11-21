@@ -553,7 +553,7 @@ CREATE TABLE llm_calls (id TEXT PRIMARY KEY, project_id TEXT, checkin_id TEXT, p
 ```
 
 - Lists (`repos`, `paths`, `files`, `co_authors`, `github_aliases`, `author_ids`, `depends_on`, `approved_by`, `grace_approved_by`, `file_paths`) and `pending_plan` are stored as JSON strings.
-- `checkins.kind` is `daily`, `extra`, `manual` or `simulate`. `llm_calls.purpose` is `taskmap`, `judge`, `escalate`, `dispute`, `nudge` or `report`.
+- `checkins.kind` is `daily`, `extra`, `manual`, `simulate` or `dispute` (a dispute re-judge's trace; never used as "the last check-in"). `llm_calls.purpose` is `taskmap`, `judge`, `escalate`, `dispute`, `nudge` or `report`.
 - `disputes.checkpoint_id` is the checkpoint whose alerts pause while the dispute is open. For a judgment dispute, it's the nearest unmet checkpoint of the judged task.
 - `projects.demo_now` is only set by "Simulate 1 week". When it's set, check-ins for that project use it as "now".
 

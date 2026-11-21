@@ -75,3 +75,79 @@ export function judgeSchemaFor(tasks: Task[], changes: JudgeChange[]) {
     });
   });
 }
+
+// ---------- disputes (big model) ----------
+
+export interface DisputeFile {
+  path: string;
+  content: string;
+}
+
+const DISPUTE_SYSTEM = `A student disputes an automated judgment of their work in a group project. Take a second, careful look using their note and the current contents of the files they point to. Be fair in both directions: correct the judgment if it was wrong, keep it if it was right. Judge requirements met, never the amount of activity.`;
+
+function filesBlock(files: DisputeFile[]): string {
+  if (files.length === 0) return "(no files given)";
+  return files.map((f) => `<file path="${f.path}">\n${f.content}\n</file>`).join("\n\n");
+}
+
+export function buildJudgmentDisputePrompt(input: {
+  task: Task | undefined;
+  change: JudgeChange;
+  previous: { kind: string; completionDelta: number; reason: string };
+  note: string;
+  files: DisputeFile[];
+}): { system: string; user: string } {
+  const task = input.task
+    ? `Task: ${input.task.title}\nDescription: ${input.task.description}\nPaths: ${input.task.paths.join(", ")}`
+    : "Task: (the change matched no task)";
+  const user = `${task}
+
+The disputed change:
+<change sha="${input.change.sha}">
+files: ${input.change.files.join(", ")}
+<diff>
+${trimDiff(input.change.diff)}
+</diff>
+</change>
+
+Previous judgment: ${input.previous.kind}, completionDelta ${input.previous.completionDelta}, "${input.previous.reason}"
+
+The student's note: "${input.note}"
+
+Current files they point to:
+${filesBlock(input.files)}
+
+Rules: "light" = formatting, renames, comments, config tweaks; "substantial" = new logic, endpoints, UI features, tests. completionDelta = the fraction (0-1) of the task's TOTAL work this one change completes.
+
+Return JSON: { "kind": "substantial" | "light", "completionDelta": 0.1, "reason": "one neutral sentence explaining the decision" }`;
+  return { system: DISPUTE_SYSTEM, user };
+}
+
+export function buildCheckpointDisputePrompt(input: {
+  task: Task;
+  checkpoint: { criteria: string; targetCompletion: number; dueAt: string };
+  judgments: { reason: string; kind: string; completionDelta: number }[];
+  note: string;
+  files: DisputeFile[];
+}): { system: string; user: string } {
+  const history =
+    input.judgments.map((j) => `- ${j.kind}, +${Math.round(j.completionDelta * 100)}%: ${j.reason}`).join("\n") || "(none)";
+  const user = `Task: ${input.task.title}
+Description: ${input.task.description}
+Current completion: ${Math.round(input.task.completion * 100)}%
+
+The disputed checkpoint: "${input.checkpoint.criteria}" (needs ${Math.round(input.checkpoint.targetCompletion * 100)}% of the task by ${input.checkpoint.dueAt})
+
+Judged changes on this task so far:
+${history}
+
+The student's note: "${input.note}"
+
+Current files they point to:
+${filesBlock(input.files)}
+
+Decide whether the checkpoint's criteria are met now, and how complete the whole task really is (0-1).
+
+Return JSON: { "completion": 0.5, "met": true, "reason": "one neutral sentence explaining the decision" }`;
+  return { system: DISPUTE_SYSTEM, user };
+}

@@ -472,7 +472,8 @@ export function getOpenDisputeCheckpointIds(projectId: string): Set<string> {
 
 // ---------- check-ins ----------
 
-export type CheckinKind = "daily" | "extra" | "manual" | "simulate";
+/** "dispute" runs only hold a dispute re-judge's trace; they never count as a check-in for "since" or grace pauses. */
+export type CheckinKind = "daily" | "extra" | "manual" | "simulate" | "dispute";
 
 export interface Checkin {
   id: string;
@@ -518,7 +519,7 @@ export function getCheckins(projectId: string): Checkin[] {
 /** The most recent finished, non-skipped check-in (used as "since" for observe). */
 export function getLastCompletedCheckin(projectId: string): Checkin | undefined {
   const r = q(
-    `SELECT * FROM checkins WHERE project_id = ? AND finished_at IS NOT NULL AND skipped = 0
+    `SELECT * FROM checkins WHERE project_id = ? AND finished_at IS NOT NULL AND skipped = 0 AND kind != 'dispute'
      ORDER BY started_at DESC LIMIT 1`,
   ).get(projectId) as Row | undefined;
   return r && rowToCheckin(r);

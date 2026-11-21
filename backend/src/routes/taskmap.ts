@@ -1,15 +1,17 @@
 // Plan routes (owner: Person A). README §2.1, §2.2, §7.
 import { Router, type RequestHandler } from "express";
 import { AgreeBody, PutTaskMapBody } from "@enforcer/shared";
-import type { Checkpoint, Member, PlanItemRef, Task, TaskMap } from "@enforcer/shared";
+import type { Checkpoint, Member, PlanDraft, PlanItemRef, Task, TaskMap } from "@enforcer/shared";
 import { rules } from "../config";
 import {
   deleteCheckpoint,
   deleteTask,
   getCheckpoints,
+  getCheckpoint,
   getProject,
   getProjectPlanState,
   getTasks,
+  getTask,
   newId,
   tx,
   updateProjectPlanState,
@@ -63,6 +65,8 @@ export function buildTaskMap(projectId: string): TaskMap | undefined {
   const tasks = getTasks(projectId);
   const checkpoints = getCheckpoints(projectId);
   const gracePeriodHours = state.gracePeriodHours ?? rules.DEFAULT_GRACE_PERIOD_HOURS;
+  const pending = state.pendingPlan ? withCurrentProgress(state.pendingPlan, tasks, checkpoints) : null;
+  const approvalPlan = pending ?? { tasks, checkpoints, graceApprovedBy: state.graceApprovedBy };
   return {
     projectId,
     version: state.planVersion,
@@ -71,8 +75,8 @@ export function buildTaskMap(projectId: string): TaskMap | undefined {
     checkpoints,
     gracePeriodHours,
     graceApprovedBy: state.graceApprovedBy,
-    pending: state.pendingPlan,
-    waitingOn: computeWaitingOn(project.members, tasks, checkpoints, state.graceApprovedBy),
+    pending,
+    waitingOn: computeWaitingOn(project.members, approvalPlan.tasks, approvalPlan.checkpoints, approvalPlan.graceApprovedBy),
   };
 }
 
@@ -205,6 +209,39 @@ function checkpointChanged(a: Checkpoint, b: Checkpoint): boolean {
   );
 }
 
+/** Pending drafts never overwrite progress recorded by check-ins or dispute re-judges. */
+function withCurrentProgress(plan: PlanDraft, tasks: Task[], checkpoints: Checkpoint[]): PlanDraft {
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const checkpointById = new Map(checkpoints.map((checkpoint) => [checkpoint.id, checkpoint]));
+  return {
+    ...plan,
+    tasks: plan.tasks.map((task) => ({ ...task, completion: taskById.get(task.id)?.completion ?? 0 })),
+    checkpoints: plan.checkpoints.map((checkpoint) => {
+      const current = checkpointById.get(checkpoint.id);
+      return { ...checkpoint, status: current?.status ?? "pending", missedAt: current?.missedAt, graceEndsAt: current?.graceEndsAt };
+    }),
+  };
+}
+
+function writePlan(projectId: string, plan: PlanDraft): void {
+  const keepTasks = new Set(plan.tasks.map((task) => task.id));
+  const keepCheckpoints = new Set(plan.checkpoints.map((checkpoint) => checkpoint.id));
+  for (const checkpoint of getCheckpoints(projectId)) if (!keepCheckpoints.has(checkpoint.id)) deleteCheckpoint(checkpoint.id);
+  for (const task of getTasks(projectId)) if (!keepTasks.has(task.id)) deleteTask(task.id);
+  for (const task of plan.tasks) upsertTask(projectId, task);
+  for (const checkpoint of plan.checkpoints) upsertCheckpoint(projectId, checkpoint);
+  updateProjectPlanState(projectId, { gracePeriodHours: plan.gracePeriodHours, graceApprovedBy: plan.graceApprovedBy });
+}
+
+/** Called within the same transaction that writes the final approval. */
+function applyPendingIfApproved(projectId: string, members: Member[]): void {
+  const state = getProjectPlanState(projectId)!;
+  const pending = state.pendingPlan;
+  if (!pending || computeWaitingOn(members, pending.tasks, pending.checkpoints, pending.graceApprovedBy).length) return;
+  writePlan(projectId, withCurrentProgress(pending, getTasks(projectId), getCheckpoints(projectId)));
+  updateProjectPlanState(projectId, { pendingPlan: null, planVersion: state.planVersion + 1 });
+}
+
 /** Problems with an edited plan, or [] if it's consistent. */
 function validatePlan(memberIds: Set<string>, tasks: Task[], checkpoints: Checkpoint[]): string[] {
   const errors: string[] = [];
@@ -214,6 +251,15 @@ function validatePlan(memberIds: Set<string>, tasks: Task[], checkpoints: Checkp
     taskById.set(t.id, t);
     if (!memberIds.has(t.ownerId)) errors.push(`task "${t.title}" has an owner who isn't on the team`);
   }
+  const visiting = new Set<string>(), visited = new Set<string>();
+  const cycle = (id: string): boolean => {
+    if (visiting.has(id)) return true;
+    if (visited.has(id)) return false;
+    visiting.add(id);
+    if (taskById.get(id)?.dependsOn.some((dependency) => taskById.has(dependency) && cycle(dependency))) return true;
+    visiting.delete(id); visited.add(id); return false;
+  };
+  if (tasks.some((task) => cycle(task.id))) errors.push("task dependencies cannot form a loop");
   for (const t of tasks) {
     for (const d of t.dependsOn) {
       if (!taskById.has(d) || d === t.id) errors.push(`task "${t.title}" depends on an unknown task`);
@@ -242,12 +288,6 @@ taskmapRouter.put("/projects/:id/taskmap", (req, res) => {
     res.status(404).json({ error: "project not found" });
     return;
   }
-  if (state.planActive) {
-    // Proposing changes to an active plan is a separate (Should) issue.
-    res.status(409).json({ error: "the plan is active; changing an active plan isn't supported yet" });
-    return;
-  }
-
   const errors = validatePlan(new Set(project.members.map((m) => m.id)), body.tasks, body.checkpoints);
   if (errors.length > 0) {
     res.status(400).json({ error: "invalid plan", issues: errors });
@@ -256,19 +296,28 @@ taskmapRouter.put("/projects/:id/taskmap", (req, res) => {
 
   const oldTasks = new Map(getTasks(projectId).map((t) => [t.id, t]));
   const oldCheckpoints = new Map(getCheckpoints(projectId).map((c) => [c.id, c]));
+  if (body.tasks.some((task) => !oldTasks.has(task.id) && getTask(task.id)) ||
+      body.checkpoints.some((checkpoint) => !oldCheckpoints.has(checkpoint.id) && getCheckpoint(checkpoint.id))) {
+    res.status(400).json({ error: "plan item ids must belong to this project or be new" });
+    return;
+  }
+  const pendingTasks = new Map(state.pendingPlan?.tasks.map((task) => [task.id, task]) ?? []);
+  const pendingCheckpoints = new Map(state.pendingPlan?.checkpoints.map((checkpoint) => [checkpoint.id, checkpoint]) ?? []);
 
   // Only changed items lose their approvals. Progress and status are the server's, never the client's.
   const tasks: Task[] = body.tasks.map((t) => {
     const old = oldTasks.get(t.id);
+    const pending = pendingTasks.get(t.id);
     return {
       ...t,
       paths: t.tracked ? t.paths : [],
       completion: old?.completion ?? 0,
-      approvedBy: old && !taskChanged(old, t) ? old.approvedBy : [],
+      approvedBy: pending && !taskChanged(pending, t) ? pending.approvedBy : old && !taskChanged(old, t) ? old.approvedBy : [],
     };
   });
   const checkpoints: Checkpoint[] = body.checkpoints.map((c) => {
     const old = oldCheckpoints.get(c.id);
+    const pending = pendingCheckpoints.get(c.id);
     const unchanged = old !== undefined && !checkpointChanged(old, c);
     return {
       id: c.id,
@@ -280,22 +329,21 @@ taskmapRouter.put("/projects/:id/taskmap", (req, res) => {
       status: old?.status ?? "pending",
       missedAt: old?.missedAt,
       graceEndsAt: old?.graceEndsAt,
-      approvedBy: unchanged ? old.approvedBy : [],
+      approvedBy: pending && !checkpointChanged(pending, c) ? pending.approvedBy : unchanged ? old.approvedBy : [],
     };
   });
   const graceUnchanged = state.gracePeriodHours === body.gracePeriodHours;
+  const plan: PlanDraft = { tasks, checkpoints, gracePeriodHours: body.gracePeriodHours,
+    graceApprovedBy: state.pendingPlan?.gracePeriodHours === body.gracePeriodHours ? state.pendingPlan.graceApprovedBy : graceUnchanged ? state.graceApprovedBy : [] };
 
   tx(() => {
-    const keepTasks = new Set(tasks.map((t) => t.id));
-    const keepCheckpoints = new Set(checkpoints.map((c) => c.id));
-    for (const id of oldCheckpoints.keys()) if (!keepCheckpoints.has(id)) deleteCheckpoint(id);
-    for (const id of oldTasks.keys()) if (!keepTasks.has(id)) deleteTask(id);
-    for (const t of tasks) upsertTask(projectId, t);
-    for (const c of checkpoints) upsertCheckpoint(projectId, c);
-    updateProjectPlanState(projectId, {
-      gracePeriodHours: body.gracePeriodHours,
-      graceApprovedBy: graceUnchanged ? state.graceApprovedBy : [],
-    });
+    if (state.planActive) {
+      const changed = tasks.length !== oldTasks.size || checkpoints.length !== oldCheckpoints.size || !graceUnchanged ||
+        tasks.some((task) => !oldTasks.has(task.id) || taskChanged(oldTasks.get(task.id)!, task)) ||
+        checkpoints.some((checkpoint) => !oldCheckpoints.has(checkpoint.id) || checkpointChanged(oldCheckpoints.get(checkpoint.id)!, checkpoint));
+      updateProjectPlanState(projectId, { pendingPlan: changed ? plan : null });
+      if (changed) applyPendingIfApproved(projectId, project.members);
+    } else writePlan(projectId, plan);
   });
 
   res.json(buildTaskMap(projectId));
@@ -318,15 +366,16 @@ taskmapRouter.post("/projects/:id/taskmap/agree", (req, res) => {
     res.status(403).json({ error: "not a member of this project" });
     return;
   }
-  if (map.active) {
-    res.json(map); // nothing to approve; pending changes are a separate (Should) issue
+  if (map.active && !map.pending) {
+    res.json(map);
     return;
   }
+  const approvalPlan = map.pending ?? map;
 
   // What this member may approve: their own tasks and personal checkpoints, plus shared items.
   const allowed = new Set<string>(["grace"]);
-  for (const t of map.tasks) if (t.ownerId === memberId) allowed.add(refKey({ kind: "task", id: t.id }));
-  for (const c of map.checkpoints) {
+  for (const t of approvalPlan.tasks) if (t.ownerId === memberId) allowed.add(refKey({ kind: "task", id: t.id }));
+  for (const c of approvalPlan.checkpoints) {
     if (c.ownerId === null || c.ownerId === memberId) allowed.add(refKey({ kind: "checkpoint", id: c.id }));
   }
 
@@ -340,6 +389,17 @@ taskmapRouter.post("/projects/:id/taskmap/agree", (req, res) => {
   const add = (list: string[]) => (list.includes(memberId) ? list : [...list, memberId]);
   const keys = new Set(requested.map(refKey));
   tx(() => {
+    if (map.pending) {
+      const pending: PlanDraft = {
+        ...map.pending,
+        tasks: map.pending.tasks.map((task) => keys.has(refKey({ kind: "task", id: task.id })) ? { ...task, approvedBy: add(task.approvedBy) } : task),
+        checkpoints: map.pending.checkpoints.map((checkpoint) => keys.has(refKey({ kind: "checkpoint", id: checkpoint.id })) ? { ...checkpoint, approvedBy: add(checkpoint.approvedBy) } : checkpoint),
+        graceApprovedBy: keys.has("grace") ? add(map.pending.graceApprovedBy) : map.pending.graceApprovedBy,
+      };
+      updateProjectPlanState(projectId, { pendingPlan: pending });
+      applyPendingIfApproved(projectId, project.members);
+      return;
+    }
     for (const t of map.tasks) {
       if (keys.has(refKey({ kind: "task", id: t.id }))) upsertTask(projectId, { ...t, approvedBy: add(t.approvedBy) });
     }

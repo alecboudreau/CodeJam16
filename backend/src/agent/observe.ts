@@ -4,6 +4,8 @@ import type { Member } from "@enforcer/shared";
 import { getLastCompletedCheckin, getProject, getRawCommit, getUnjudgedCommits, insertRawCommit, type RawCommit } from "../db/db";
 import { getCommitDiff, listCommits } from "../github/client";
 
+const SINCE_LOOKBACK_MS = 14 * 24 * 3600_000;
+
 export interface ObserveResult {
   /** Commits stored for the project that have no judgment yet (new ones plus any left over). */
   commits: RawCommit[];
@@ -21,7 +23,10 @@ export async function observe(projectId: string, opts: { skipGitHub?: boolean } 
 
   let fetched = 0;
   if (!opts.skipGitHub) {
-    const since = getLastCompletedCheckin(projectId)?.startedAt;
+    // GitHub filters `since` on the commit's author date, and a commit can be pushed days after it was
+    // written, so look back a little further. Already-stored SHAs are skipped below.
+    const last = getLastCompletedCheckin(projectId)?.startedAt;
+    const since = last ? new Date(new Date(last).getTime() - SINCE_LOOKBACK_MS).toISOString() : undefined;
     for (const repo of project.repos) {
       for (const c of await listCommits(repo, since)) {
         if (getRawCommit(c.sha)) continue; // `since` is inclusive; already stored

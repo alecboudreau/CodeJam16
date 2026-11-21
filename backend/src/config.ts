@@ -35,3 +35,14 @@ export const rules = {
   DISPUTE_MAX_FILES: 5,             // files fetched for a dispute
   DISPUTE_FILE_MAX_LINES: 200,      // each file trimmed to this many lines
 } as const;
+
+// Compute meter constants (README §11). USD per 1M tokens; Wh per token are rough estimates
+// (labelled "estimate" in the UI). Unknown model ids are priced as the big model.
+export const pricing: Record<string, { inPerM: number; outPerM: number; whPerToken: number }> = {
+  "claude-haiku-5-5": { inPerM: 0.1, outPerM: 0.5, whPerToken: 0.00003 },
+  "claude-sonnet-5-5": { inPerM: 2, outPerM: 10, whPerToken: 0.0003 },
+};
+
+export const meterRules = {
+  NAIVE_OUTPUT_TOKENS_PER_COMMIT: 200, // naive baseline: assumed answer size per commit sent alone
+} as const;

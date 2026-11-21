@@ -13,6 +13,7 @@ import {
   upsertJudgment,
   type CheckinKind,
 } from "../db/db";
+import { decide } from "./decide";
 import { filterCommits } from "./filter";
 import { judgeCommits } from "./judge";
 import { observe } from "./observe";
@@ -146,7 +147,14 @@ async function runSteps(
       missed: update.missed.map((c) => ({ task: titleOf.get(c.taskId), criteria: c.criteria, graceEndsAt: c.graceEndsAt })),
     });
 
-    // Decide rules (README §10 Steps B + C) and act come in #11 and #12.
+    // 4. Decide, Steps B + C: the rules (plain code). Act (#12) sends what's decided here.
+    const decisions = decide(projectId, checkinId, now);
+    const actionable = decisions.filter((d) => d.action !== "none");
+    trace.step(
+      "decide",
+      actionable.length === 0 ? "Everyone is on track: nothing to send" : actionable.map((d) => `${d.reason} → ${d.action}`).join("; "),
+      { decisions: decisions.map(({ memberId, checkpointId, action, reason }) => ({ memberId, checkpointId, action, reason })) },
+    );
   } catch (e) {
     trace.step(current, `failed: ${(e as Error).message}`);
     throw e;

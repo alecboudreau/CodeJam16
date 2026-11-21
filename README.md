@@ -143,7 +143,7 @@ One click produces a **neutral status summary** for the team: for each task and 
 | **Must** | Setup, spec upload, plan generation (tasks + checkpoints + grace period), per-item approval, daily + extra check-ins, filter / judge / escalate, checkpoint statuses, two-level progress, decide rules, Discord DMs with buttons, `/link`, team alerts and help posts, disputes (judgments + checkpoints), owner-only evidence, dashboard, live trace, compute meter, status report, "Simulate 1 week" demo |
 | **Should** | Proposing changes to an active plan, GitHub push webhooks (check-ins pull commits anyway), email nudges, cached LLM fallback for the demo |
 | **Stretch** | Free-text replies to the bot ("blocked, waiting on Alex") read by the small model |
-| **Future ideas** | Professor/TA view of status reports, Slack, Google Docs/Figma evidence |
+| **Future ideas** | WhatsApp as a second reminder channel (#61), professor/TA view of status reports, Slack, Google Docs/Figma evidence |
 | **Out of scope** | Grading, ranking or contribution scoring; screenshot evidence for disputes; private repos / GitHub OAuth; user accounts; mobile app |
 
 **Rule:** no Should or Stretch work before the hour-20 checkpoint.

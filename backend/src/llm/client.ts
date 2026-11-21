@@ -7,7 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ZodType, ZodTypeDef } from "zod";
 import { config, ROOT_DIR } from "../config";
-import { db, newId, nowIso } from "../db/db";
+import { dbRun, newId, nowIso } from "../db/db";
 import { costOf } from "./meter";
 
 // ---------- cached fallback for the live demo (README §15) ----------
@@ -44,7 +44,11 @@ function readCache(): Record<string, CacheEntry> {
 function saveToCache(key: string, entry: CacheEntry): void {
   const c = readCache();
   c[key] = entry;
-  writeFileSync(cachePath, JSON.stringify(c, null, 1) + "\n");
+  try {
+    writeFileSync(cachePath, JSON.stringify(c, null, 1) + "\n");
+  } catch {
+    // Read-only filesystem (e.g. on Vercel): keep the answer in memory only.
+  }
 }
 
 const cacheKey = (model: string, effort: Effort, system: string, messages: Anthropic.MessageParam[]) =>
@@ -126,8 +130,8 @@ async function send<T>(
   const key = cacheKey(model, effort, system, messages);
 
   // Cached answers are logged with their original token counts, so the compute meter is unchanged.
-  const fromCache = (entry: CacheEntry): string => {
-    logCall(req, entry.model, entry.inputTokens, entry.outputTokens);
+  const fromCache = async (entry: CacheEntry): Promise<string> => {
+    await logCall(req, entry.model, entry.inputTokens, entry.outputTokens);
     return entry.text;
   };
 
@@ -154,7 +158,7 @@ async function send<T>(
   }
 
   // Log the model that actually served the request (it differs after a fallback).
-  logCall(req, response.model, response.usage.input_tokens, response.usage.output_tokens);
+  await logCall(req, response.model, response.usage.input_tokens, response.usage.output_tokens);
 
   if (response.stop_reason === "refusal") {
     throw new LlmRefusalError(response.model, response.stop_details?.category ?? null);
@@ -191,10 +195,11 @@ function parseJson<T>(text: string, schema: ZodType<T, ZodTypeDef, unknown>): Pa
   return { ok: false, error: `JSON does not match the schema (${issues})` };
 }
 
-function logCall<T>(req: LlmRequest<T>, model: string, inputTokens: number, outputTokens: number): void {
+async function logCall<T>(req: LlmRequest<T>, model: string, inputTokens: number, outputTokens: number): Promise<void> {
   const { usd, wh } = costOf(model, inputTokens, outputTokens);
-  db.prepare(
+  await dbRun(
     `INSERT INTO llm_calls (id, project_id, checkin_id, purpose, model, input_tokens, output_tokens, usd, wh, at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(newId(), req.projectId, req.checkinId ?? null, req.purpose, model, inputTokens, outputTokens, usd, wh, nowIso());
+    newId(), req.projectId, req.checkinId ?? null, req.purpose, model, inputTokens, outputTokens, usd, wh, nowIso(),
+  );
 }

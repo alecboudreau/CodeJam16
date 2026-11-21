@@ -1,13 +1,14 @@
 // /api/projects, members, aliases (owner: Person A). README §7.
 import { Router } from "express";
 import { AddAliasBody, CreateProjectBody } from "@enforcer/shared";
-import { addGithubAlias, db, getMemberProjectId, getProject, insertProject } from "../db/db";
+import { addGithubAlias, getMemberProjectId, getProject, insertProject, setMemberDiscordId } from "../db/db";
 import { authEnabled } from "../auth/auth";
 
 export const projectsRouter = Router();
 
 // POST /projects → Project
-projectsRouter.post("/projects", (req, res) => {
+projectsRouter.post("/projects", async (req, res, next) => {
+  try {
   const body = CreateProjectBody.parse(req.body);
 
   const seen = new Set<string>();
@@ -32,17 +33,26 @@ projectsRouter.post("/projects", (req, res) => {
     }
   }
 
-  const project = insertProject(body);
+  const project = await insertProject(body);
   if (authEnabled() && me?.discordId && myEmail) {
     const creator = project.members.find((m) => m.email?.toLowerCase() === myEmail);
-    if (creator && !creator.discordId) db.prepare("UPDATE members SET discord_id = ? WHERE id = ?").run(me.discordId, creator.id);
+    if (creator && !creator.discordId) await setMemberDiscordId(creator.id, me.discordId);
   }
-  res.status(201).json(getProject(project.id));
+  res.status(201).json(await getProject(project.id));
+  } catch (e) {
+    next(e);
+  }
 });
 
 // GET /projects/:id → Project
-projectsRouter.get("/projects/:id", (req, res) => {
-  const project = getProject(req.params.id);
+projectsRouter.get("/projects/:id", async (req, res, next) => {
+  let project;
+  try {
+    project = await getProject(req.params.id);
+  } catch (e) {
+    next(e);
+    return;
+  }
   if (!project) {
     res.status(404).json({ error: "project not found" });
     return;
@@ -52,11 +62,15 @@ projectsRouter.get("/projects/:id", (req, res) => {
 
 // POST /projects/:id/members/:memberId/aliases { githubLogin } → Member
 // Assigns an "unmatched" GitHub login to a member.
-projectsRouter.post("/projects/:id/members/:memberId/aliases", (req, res) => {
+projectsRouter.post("/projects/:id/members/:memberId/aliases", async (req, res, next) => {
+  try {
   const { githubLogin } = AddAliasBody.parse(req.body);
-  if (getMemberProjectId(req.params.memberId) !== req.params.id) {
+  if ((await getMemberProjectId(req.params.memberId)) !== req.params.id) {
     res.status(404).json({ error: "member not found in this project" });
     return;
   }
-  res.json(addGithubAlias(req.params.memberId, githubLogin));
+  res.json(await addGithubAlias(req.params.memberId, githubLogin));
+  } catch (e) {
+    next(e);
+  }
 });

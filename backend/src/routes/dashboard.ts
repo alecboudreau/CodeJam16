@@ -1,9 +1,9 @@
 // /dashboard?viewerId= and /meter (owner: Person A). README §2.5, §7 (Dashboard privacy).
 // Everyone sees status and progress for every task. Commit evidence and judgment reasons are only
 // returned for the viewer's own tasks. No scores, shares or member comparisons.
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import type { Dashboard, Judgment, Task } from "@enforcer/shared";
-import { getCheckpoints, getDisputes, getJudgments, getProject, getRawCommit, getTasks } from "../db/db";
+import { dbAll, getCheckpoints, getDisputes, getJudgments, getProject, getTasks } from "../db/db";
 import { completionFromJudgments, overallProgress } from "../agent/progress";
 import { getComputeMeter } from "../llm/meter";
 
@@ -19,8 +19,19 @@ function globToRegex(glob: string): RegExp {
  * Filtered commits carry no task (they never reach the judge). For the viewer's own evidence,
  * attribute their filtered commits to the task whose paths match the commit's files.
  */
-function taskForFiltered(j: Judgment, ownTasks: Task[]): string | null {
-  const files = getRawCommit(j.sha)?.files ?? [];
+type CommitInfo = Map<string, { files: string[]; committedAt: string }>;
+
+/** Every stored commit's files and date, loaded once (not one query per judgment). */
+async function commitInfo(projectId: string): Promise<CommitInfo> {
+  const rows = await dbAll<{ sha: string; files: string; committed_at: string }>(
+    "SELECT sha, files, committed_at FROM raw_commits WHERE project_id = ?",
+    projectId,
+  );
+  return new Map(rows.map((r) => [r.sha, { files: JSON.parse(r.files || "[]") as string[], committedAt: r.committed_at }]));
+}
+
+function taskForFiltered(j: Judgment, ownTasks: Task[], commits: CommitInfo): string | null {
+  const files = commits.get(j.sha)?.files ?? [];
   for (const t of ownTasks) {
     const res = t.paths.map(globToRegex);
     if (files.some((f) => res.some((re) => re.test(f)))) return t.id;
@@ -29,14 +40,19 @@ function taskForFiltered(j: Judgment, ownTasks: Task[]): string | null {
 }
 
 /** Day of a judgment: its commit date, or the dispute date for dispute evidence entries. */
-function dayOf(j: Judgment, disputeDay: Map<string, string>): string | undefined {
-  const committed = getRawCommit(j.sha)?.committedAt;
+function dayOf(j: Judgment, disputeDay: Map<string, string>, commits: CommitInfo): string | undefined {
+  const committed = commits.get(j.sha)?.committedAt;
   return (committed ?? disputeDay.get(j.sha))?.slice(0, 10);
 }
 
 // GET /projects/:id/dashboard?viewerId= → Dashboard
-dashboardRouter.get("/projects/:id/dashboard", (req, res) => {
-  const project = getProject(req.params.id);
+const asyncRoute =
+  (fn: RequestHandler): RequestHandler =>
+  (req, res, next) =>
+    Promise.resolve(fn(req, res, next)).catch(next);
+
+dashboardRouter.get("/projects/:id/dashboard", asyncRoute(async (req, res) => {
+  const project = await getProject(req.params.id);
   if (!project) {
     res.status(404).json({ error: "project not found" });
     return;
@@ -47,10 +63,13 @@ dashboardRouter.get("/projects/:id/dashboard", (req, res) => {
     return;
   }
 
-  const tasks = getTasks(project.id);
-  const checkpoints = getCheckpoints(project.id);
-  const judgments = getJudgments(project.id);
-  const disputes = getDisputes(project.id);
+  const [tasks, checkpoints, judgments, disputes, commits] = await Promise.all([
+    getTasks(project.id),
+    getCheckpoints(project.id),
+    getJudgments(project.id),
+    getDisputes(project.id),
+    commitInfo(project.id),
+  ]);
 
   // Everyone's status + progress, no evidence.
   const taskProgress = tasks.map((task) => ({ task, checkpoints: checkpoints.filter((c) => c.taskId === task.id) }));
@@ -69,7 +88,7 @@ dashboardRouter.get("/projects/:id/dashboard", (req, res) => {
       j.taskId && ownIds.has(j.taskId)
         ? j.taskId
         : j.kind === "filtered" && byViewer(j)
-          ? taskForFiltered(j, ownTasks)
+          ? taskForFiltered(j, ownTasks, commits)
           : null;
     if (taskId) evidence.get(taskId)!.push(j);
   }
@@ -82,9 +101,9 @@ dashboardRouter.get("/projects/:id/dashboard", (req, res) => {
 
   // Overall progress over time: recompute completion with the judgments known by the end of each day.
   const disputeDay = new Map(disputes.map((d) => [`dispute:${d.id}`, d.resolvedAt ?? d.createdAt]));
-  const days = [...new Set(judgments.map((j) => dayOf(j, disputeDay)).filter((d): d is string => !!d))].sort();
+  const days = [...new Set(judgments.map((j) => dayOf(j, disputeDay, commits)).filter((d): d is string => !!d))].sort();
   const timeline = days.map((date) => {
-    const upTo = judgments.filter((j) => (dayOf(j, disputeDay) ?? "") <= date);
+    const upTo = judgments.filter((j) => (dayOf(j, disputeDay, commits) ?? "") <= date);
     const asOf = tasks.map((t) => ({ ...t, completion: completionFromJudgments(t, upTo) }));
     return { date, overallProgress: overallProgress(asOf) };
   });
@@ -109,13 +128,13 @@ dashboardRouter.get("/projects/:id/dashboard", (req, res) => {
     unmatched: [...unmatchedCounts].map(([login, commits]) => ({ login, commits })),
   };
   res.json(dashboard);
-});
+}));
 
 // GET /projects/:id/meter → ComputeMeter
-dashboardRouter.get("/projects/:id/meter", (req, res) => {
-  if (!getProject(req.params.id)) {
+dashboardRouter.get("/projects/:id/meter", asyncRoute(async (req, res) => {
+  if (!(await getProject(req.params.id))) {
     res.status(404).json({ error: "project not found" });
     return;
   }
-  res.json(getComputeMeter(req.params.id));
-});
+  res.json(await getComputeMeter(req.params.id));
+}));

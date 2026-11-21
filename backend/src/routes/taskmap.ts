@@ -55,13 +55,13 @@ export function computeWaitingOn(
   return waiting;
 }
 
-export function buildTaskMap(projectId: string): TaskMap | undefined {
-  const project = getProject(projectId);
-  const state = getProjectPlanState(projectId);
+export async function buildTaskMap(projectId: string): Promise<TaskMap | undefined> {
+  const project = await getProject(projectId);
+  const state = await getProjectPlanState(projectId);
   if (!project || !state) return undefined;
 
-  const tasks = getTasks(projectId);
-  const checkpoints = getCheckpoints(projectId);
+  const tasks = await getTasks(projectId);
+  const checkpoints = await getCheckpoints(projectId);
   const gracePeriodHours = state.gracePeriodHours ?? rules.DEFAULT_GRACE_PERIOD_HOURS;
   return {
     projectId,
@@ -87,8 +87,8 @@ taskmapRouter.post(
   "/projects/:id/taskmap/generate",
   asyncRoute(async (req, res) => {
     const projectId = req.params.id;
-    const project = getProject(projectId);
-    const state = getProjectPlanState(projectId);
+    const project = await getProject(projectId);
+    const state = await getProjectPlanState(projectId);
     if (!project || !state) {
       res.status(404).json({ error: "project not found" });
       return;
@@ -151,32 +151,32 @@ taskmapRouter.post(
       }));
 
     // Replace any earlier draft. Nothing is approved yet.
-    tx(() => {
-      for (const c of getCheckpoints(projectId)) deleteCheckpoint(c.id);
-      for (const t of getTasks(projectId)) deleteTask(t.id);
-      for (const t of tasks) upsertTask(projectId, t);
-      for (const c of checkpoints) upsertCheckpoint(projectId, c);
-      updateProjectPlanState(projectId, {
+    await tx(async () => {
+      for (const c of await getCheckpoints(projectId)) await deleteCheckpoint(c.id);
+      for (const t of await getTasks(projectId)) await deleteTask(t.id);
+      for (const t of tasks) await upsertTask(projectId, t);
+      for (const c of checkpoints) await upsertCheckpoint(projectId, c);
+      await updateProjectPlanState(projectId, {
         gracePeriodHours: plan.gracePeriodHours ?? rules.DEFAULT_GRACE_PERIOD_HOURS,
         graceApprovedBy: [],
         pendingPlan: null,
       });
     });
 
-    res.json(buildTaskMap(projectId));
+    res.json(await buildTaskMap(projectId));
   }),
 );
 
 // ---------- GET /projects/:id/taskmap ----------
 
-taskmapRouter.get("/projects/:id/taskmap", (req, res) => {
-  const map = buildTaskMap(req.params.id);
+taskmapRouter.get("/projects/:id/taskmap", asyncRoute(async (req, res) => {
+  const map = await buildTaskMap(req.params.id);
   if (!map) {
     res.status(404).json({ error: "project not found" });
     return;
   }
   res.json(map);
-});
+}));
 
 // ---------- PUT /projects/:id/taskmap ----------
 
@@ -233,11 +233,11 @@ function validatePlan(memberIds: Set<string>, tasks: Task[], checkpoints: Checkp
   return errors;
 }
 
-taskmapRouter.put("/projects/:id/taskmap", (req, res) => {
+taskmapRouter.put("/projects/:id/taskmap", asyncRoute(async (req, res) => {
   const projectId = req.params.id;
   const body = PutTaskMapBody.parse(req.body);
-  const project = getProject(projectId);
-  const state = getProjectPlanState(projectId);
+  const project = await getProject(projectId);
+  const state = await getProjectPlanState(projectId);
   if (!project || !state) {
     res.status(404).json({ error: "project not found" });
     return;
@@ -254,8 +254,8 @@ taskmapRouter.put("/projects/:id/taskmap", (req, res) => {
     return;
   }
 
-  const oldTasks = new Map(getTasks(projectId).map((t) => [t.id, t]));
-  const oldCheckpoints = new Map(getCheckpoints(projectId).map((c) => [c.id, c]));
+  const oldTasks = new Map((await getTasks(projectId)).map((t) => [t.id, t]));
+  const oldCheckpoints = new Map((await getCheckpoints(projectId)).map((c) => [c.id, c]));
 
   // Only changed items lose their approvals. Progress and status are the server's, never the client's.
   const tasks: Task[] = body.tasks.map((t) => {
@@ -285,31 +285,31 @@ taskmapRouter.put("/projects/:id/taskmap", (req, res) => {
   });
   const graceUnchanged = state.gracePeriodHours === body.gracePeriodHours;
 
-  tx(() => {
+  await tx(async () => {
     const keepTasks = new Set(tasks.map((t) => t.id));
     const keepCheckpoints = new Set(checkpoints.map((c) => c.id));
-    for (const id of oldCheckpoints.keys()) if (!keepCheckpoints.has(id)) deleteCheckpoint(id);
-    for (const id of oldTasks.keys()) if (!keepTasks.has(id)) deleteTask(id);
-    for (const t of tasks) upsertTask(projectId, t);
-    for (const c of checkpoints) upsertCheckpoint(projectId, c);
-    updateProjectPlanState(projectId, {
+    for (const id of oldCheckpoints.keys()) if (!keepCheckpoints.has(id)) await deleteCheckpoint(id);
+    for (const id of oldTasks.keys()) if (!keepTasks.has(id)) await deleteTask(id);
+    for (const t of tasks) await upsertTask(projectId, t);
+    for (const c of checkpoints) await upsertCheckpoint(projectId, c);
+    await updateProjectPlanState(projectId, {
       gracePeriodHours: body.gracePeriodHours,
       graceApprovedBy: graceUnchanged ? state.graceApprovedBy : [],
     });
   });
 
-  res.json(buildTaskMap(projectId));
-});
+  res.json(await buildTaskMap(projectId));
+}));
 
 // ---------- POST /projects/:id/taskmap/agree ----------
 
 const refKey = (r: PlanItemRef) => (r.kind === "grace" ? "grace" : `${r.kind}:${r.id}`);
 
-taskmapRouter.post("/projects/:id/taskmap/agree", (req, res) => {
+taskmapRouter.post("/projects/:id/taskmap/agree", asyncRoute(async (req, res) => {
   const projectId = req.params.id;
   const { memberId, items } = AgreeBody.parse(req.body);
-  const map = buildTaskMap(projectId);
-  const project = getProject(projectId);
+  const map = await buildTaskMap(projectId);
+  const project = await getProject(projectId);
   if (!map || !project) {
     res.status(404).json({ error: "project not found" });
     return;
@@ -339,23 +339,23 @@ taskmapRouter.post("/projects/:id/taskmap/agree", (req, res) => {
 
   const add = (list: string[]) => (list.includes(memberId) ? list : [...list, memberId]);
   const keys = new Set(requested.map(refKey));
-  tx(() => {
+  await tx(async () => {
     for (const t of map.tasks) {
-      if (keys.has(refKey({ kind: "task", id: t.id }))) upsertTask(projectId, { ...t, approvedBy: add(t.approvedBy) });
+      if (keys.has(refKey({ kind: "task", id: t.id }))) await upsertTask(projectId, { ...t, approvedBy: add(t.approvedBy) });
     }
     for (const c of map.checkpoints) {
       if (keys.has(refKey({ kind: "checkpoint", id: c.id }))) {
-        upsertCheckpoint(projectId, { ...c, approvedBy: add(c.approvedBy) });
+        await upsertCheckpoint(projectId, { ...c, approvedBy: add(c.approvedBy) });
       }
     }
-    if (keys.has("grace")) updateProjectPlanState(projectId, { graceApprovedBy: add(map.graceApprovedBy) });
+    if (keys.has("grace")) await updateProjectPlanState(projectId, { graceApprovedBy: add(map.graceApprovedBy) });
 
     // Everything approved by the right people → the plan becomes active.
-    const after = buildTaskMap(projectId)!;
+    const after = (await buildTaskMap(projectId))!;
     if (after.tasks.length > 0 && after.waitingOn.length === 0) {
-      updateProjectPlanState(projectId, { planActive: true, planVersion: after.version + 1 });
+      await updateProjectPlanState(projectId, { planActive: true, planVersion: after.version + 1 });
     }
   });
 
-  res.json(buildTaskMap(projectId));
-});
+  res.json(await buildTaskMap(projectId));
+}));

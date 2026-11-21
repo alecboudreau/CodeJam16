@@ -21,8 +21,8 @@ export interface ScheduledRun {
  */
 export async function runScheduled(kind: ScheduledKind): Promise<ScheduledRun[]> {
   const runs: ScheduledRun[] = [];
-  for (const projectId of listActiveProjectIds()) {
-    if (getProjectPlanState(projectId)?.demoNow) {
+  for (const projectId of await listActiveProjectIds()) {
+    if ((await getProjectPlanState(projectId))?.demoNow) {
       runs.push({ projectId, outcome: "skipped-demo-clock" });
       continue;
     }

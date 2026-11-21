@@ -9,6 +9,7 @@ loadEnv({ path: resolve(ROOT_DIR, ".env") });
 export const config = {
   port: Number(process.env.PORT ?? 3001),
   databasePath: resolve(ROOT_DIR, process.env.DATABASE_PATH ?? "./data/enforcer.db"),
+  databaseUrl: process.env.DATABASE_URL ?? "", // Supabase Postgres (transaction pooler)
   frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:5173",
   githubToken: process.env.GITHUB_TOKEN ?? "",
   githubWebhookSecret: process.env.GITHUB_WEBHOOK_SECRET ?? "", // Should: push webhooks only
@@ -19,6 +20,8 @@ export const config = {
   discordAppId: process.env.DISCORD_APP_ID ?? "",
   discordGuildId: process.env.DISCORD_GUILD_ID ?? "",
   discordGroupChannelId: process.env.DISCORD_GROUP_CHANNEL_ID ?? "",
+  discordPublicKey: process.env.DISCORD_PUBLIC_KEY ?? "", // verifies /api/discord/interactions
+  cronSecret: process.env.CRON_SECRET ?? "", // Supabase pg_cron sends it to /api/cron/*
   timezone: process.env.TZ ?? "America/Toronto",
   supabaseUrl: (process.env.SUPABASE_URL ?? "").replace(/\/+$/, ""),
   // Sign-in is on whenever Supabase is configured, unless explicitly disabled (local demo only).

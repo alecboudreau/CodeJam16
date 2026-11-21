@@ -1,6 +1,6 @@
-// `npm run db:init`: creates the SQLite file from schema.sql.
-import { config } from "../config";
-import { initDb } from "./db";
+// `npm run db:init`: creates the tables in Supabase Postgres (safe to run again).
+import { closeDb, initDb } from "./db";
 
-initDb();
-console.log(`database ready at ${config.databasePath}`);
+await initDb();
+console.log("database ready (Supabase Postgres)");
+await closeDb();

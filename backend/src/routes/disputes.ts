@@ -29,8 +29,8 @@ const asyncRoute =
   (req, res, next) =>
     Promise.resolve(fn(req, res, next)).catch(next);
 
-const hasOpenDispute = (projectId: string, targetId: string) =>
-  getDisputes(projectId).some(
+const hasOpenDispute = async (projectId: string, targetId: string) =>
+  (await getDisputes(projectId)).some(
     (d) => d.status === "open" && (d.target.kind === "judgment" ? d.target.sha : d.target.checkpointId) === targetId,
   );
 
@@ -41,14 +41,14 @@ async function runDispute(
   rejudge: (checkinId: string) => Promise<{ before: string; after: string; reason: string }>,
   label: string,
 ): Promise<{ dispute: Dispute; ok: boolean; error?: string }> {
-  const now = projectNow(projectId);
-  const run = insertCheckin(projectId, "dispute", now.toISOString());
-  const trace = createTracer(run.id);
+  const now = await projectNow(projectId);
+  const run = await insertCheckin(projectId, "dispute", now.toISOString());
+  const trace = await createTracer(run.id);
   try {
     const result = await rejudge(run.id);
-    const resolved = resolveDispute(dispute.id, result);
-    const update = updateProgress(projectId, now);
-    trace.step("escalate", `disputed → re-judged by the big model → ${result.before} → ${result.after}`, {
+    const resolved = await resolveDispute(dispute.id, result);
+    const update = await updateProgress(projectId, now);
+    await trace.step("escalate", `disputed → re-judged by the big model → ${result.before} → ${result.after}`, {
       disputeId: dispute.id,
       target: label,
       reason: result.reason,
@@ -56,10 +56,10 @@ async function runDispute(
     });
     return { dispute: resolved, ok: true };
   } catch (e) {
-    trace.step("escalate", `dispute re-judge failed: ${(e as Error).message}`, { disputeId: dispute.id });
+    await trace.step("escalate", `dispute re-judge failed: ${(e as Error).message}`, { disputeId: dispute.id });
     return { dispute, ok: false, error: (e as Error).message };
   } finally {
-    finishCheckin(run.id);
+    await finishCheckin(run.id);
   }
 }
 
@@ -69,28 +69,28 @@ disputesRouter.post(
   asyncRoute(async (req, res) => {
     const projectId = req.params.id;
     const body = DisputeBody.parse(req.body);
-    const project = getProject(projectId);
-    const judgment = getJudgment(req.params.sha);
-    if (!project || !judgment || !getJudgments(projectId).some((j) => j.sha === judgment.sha)) {
+    const project = await getProject(projectId);
+    const judgment = await getJudgment(req.params.sha);
+    if (!project || !judgment || !(await getJudgments(projectId)).some((j) => j.sha === judgment.sha)) {
       res.status(404).json({ error: "judgment not found" });
       return;
     }
-    const task = judgment.taskId ? getTask(judgment.taskId) : undefined;
+    const task = judgment.taskId ? await getTask(judgment.taskId) : undefined;
     const mayDispute = task ? task.ownerId === body.memberId : judgment.authorIds.includes(body.memberId);
     if (!mayDispute) {
       res.status(403).json({ error: "only the owner of the task can dispute this judgment" });
       return;
     }
-    if (hasOpenDispute(projectId, judgment.sha)) {
+    if (await hasOpenDispute(projectId, judgment.sha)) {
       res.status(409).json({ error: "this judgment already has an open dispute" });
       return;
     }
 
     // Pause the nearest unmet checkpoint of the judged task while this is open.
     const pausedCheckpoint = task
-      ? getCheckpoints(projectId).find((c) => c.taskId === task.id && c.status !== "met")?.id ?? null
+      ? (await getCheckpoints(projectId)).find((c) => c.taskId === task.id && c.status !== "met")?.id ?? null
       : null;
-    const dispute = insertDispute(
+    const dispute = await insertDispute(
       projectId,
       { target: { kind: "judgment", sha: judgment.sha }, memberId: body.memberId, note: body.note, filePaths: body.filePaths ?? [] },
       pausedCheckpoint,
@@ -113,9 +113,9 @@ disputesRouter.post(
   asyncRoute(async (req, res) => {
     const projectId = req.params.id;
     const body = DisputeBody.parse(req.body);
-    const project = getProject(projectId);
-    const checkpoint = getCheckpoint(req.params.checkpointId);
-    if (!project || !checkpoint || !getCheckpoints(projectId).some((c) => c.id === checkpoint.id)) {
+    const project = await getProject(projectId);
+    const checkpoint = await getCheckpoint(req.params.checkpointId);
+    if (!project || !checkpoint || !(await getCheckpoints(projectId)).some((c) => c.id === checkpoint.id)) {
       res.status(404).json({ error: "checkpoint not found" });
       return;
     }
@@ -132,12 +132,12 @@ disputesRouter.post(
       res.status(409).json({ error: "this checkpoint is already met" });
       return;
     }
-    if (hasOpenDispute(projectId, checkpoint.id)) {
+    if (await hasOpenDispute(projectId, checkpoint.id)) {
       res.status(409).json({ error: "this checkpoint already has an open dispute" });
       return;
     }
 
-    const dispute = insertDispute(
+    const dispute = await insertDispute(
       projectId,
       { target: { kind: "checkpoint", checkpointId: checkpoint.id }, memberId: body.memberId, note: body.note, filePaths: body.filePaths ?? [] },
       checkpoint.id,

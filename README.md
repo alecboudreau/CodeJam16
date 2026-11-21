@@ -295,7 +295,7 @@ Each person owns folders, so we rarely edit the same files. Only `shared/` is co
 - Scheduler (`node-cron`): daily 18:00 plus the 6-hourly conditional check
 - Demo: `demo/spec.md`, the fake repo script, `commits-week2.json`, `seed.ts`, `replay.ts`
 - Deploy (Vercel + Render/Railway)
-- Pitch slides, backup screen recording, rehearsal
+- Pitch slides, rehearsal
 - *Should:* GitHub push webhook with signature check, email nudges
 
 ### Who calls whom
@@ -681,7 +681,7 @@ VITE_USE_MOCKS=true
 | **20** | **Checkpoint: full demo works end to end** | | |
 | 20–26 | Sleep in shifts; bug fixes | Sleep in shifts; polish | Sleep in shifts; deploy |
 | 26–30 | Should: pending plan changes | Should: propose-change UI | Should: webhooks, email nudges |
-| 30–34 | Cached LLM fallback | Loading/error states, final UI | Slides, backup recording |
+| 30–34 | Cached LLM fallback | Loading/error states, final UI | Slides |
 | 34–36 | Rehearse pitch ×3 (all) | | |
 
 ---
@@ -711,7 +711,7 @@ VITE_USE_MOCKS=true
   - **Sam**: owns *Dashboard UI*, which depends on Alex's *Payment history endpoint*. Nothing committed. The checkpoint is due at the end of the simulated week.
 - `demo/make-demo-repo.sh` uses `git commit --date` so the timeline looks like 3 real weeks.
 - "Simulate 1 week" runs one check-in per simulated day on `demo_now`, with extra check-ins skipped when nothing is due.
-- Keep a **cached fallback** of the plan, judgments, nudges, dispute result and report in case the Wi-Fi or API fails, plus a **screen recording** of the full demo.
+- Keep a **cached fallback** of the plan, judgments, nudges, dispute result and report in case the Wi-Fi or API fails.
 
 ---
 

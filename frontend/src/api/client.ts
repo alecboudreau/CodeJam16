@@ -18,6 +18,41 @@ export interface CreateProjectInput {
 export type UpdatePlanInput = Pick<TaskMap, "tasks" | "checkpoints" | "gracePeriodHours">;
 export interface DisputeInput { note: string; filePaths?: string[] }
 
+// A17 (#59) owns the shared contract. Keep B12's boundary local until it lands.
+export type InboxStatus = "on_it" | "blocked" | "need_help";
+export interface InboxItem {
+  id: string;
+  kind: "nudge" | "nudge_blocker" | "help_post" | "team_alert";
+  message: string;
+  at: string;
+  checkpoint: { id: string; criteria: string; taskTitle: string };
+  deliveredOnDiscord: boolean;
+  answered: { status: InboxStatus; blockedByName?: string } | null;
+}
+export interface InboxData { forYou: InboxItem[]; team: InboxItem[]; unreadCount: number }
+export interface StatusInput { status: InboxStatus; blockedById?: string }
+
+function readInbox(value: unknown): InboxData {
+  const data = value as Partial<InboxData> | null;
+  const item = (value: unknown): value is InboxItem => {
+    if (!value || typeof value !== "object") return false;
+    const row = value as InboxItem;
+    return typeof row.id === "string" && typeof row.message === "string" && typeof row.at === "string" && Number.isFinite(Date.parse(row.at)) &&
+      ["nudge", "nudge_blocker", "help_post", "team_alert"].includes(row.kind) && typeof row.deliveredOnDiscord === "boolean" &&
+      !!row.checkpoint && [row.checkpoint.id, row.checkpoint.criteria, row.checkpoint.taskTitle].every((v) => typeof v === "string") &&
+      (row.answered === null || !!row.answered && ["on_it", "blocked", "need_help"].includes(row.answered.status) &&
+        (row.answered.blockedByName === undefined || typeof row.answered.blockedByName === "string"));
+  };
+  if (!data || !Array.isArray(data.forYou) || !Array.isArray(data.team) || !data.forYou.every(item) || !data.team.every(item) ||
+    data.forYou.some((row) => row.kind !== "nudge" && row.kind !== "nudge_blocker") ||
+    data.team.some((row) => row.kind !== "help_post" && row.kind !== "team_alert") ||
+    !Number.isInteger(data.unreadCount) || data.unreadCount !== data.forYou.filter((row) => row.answered === null).length) {
+    throw new ApiError("The server returned an invalid Inbox response.", 502);
+  }
+  const newest = (a: InboxItem, b: InboxItem) => Date.parse(b.at) - Date.parse(a.at);
+  return { forYou: [...data.forYou].sort(newest), team: [...data.team].sort(newest), unreadCount: data.unreadCount! };
+}
+
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number, public readonly details?: unknown) {
     super(message);
@@ -100,6 +135,12 @@ export const api = {
     `${projectPath(id)}/trace${checkinId ? `?${new URLSearchParams({ checkinId })}` : ""}`),
   getDashboard: (id: string, viewerId?: string) => request<Dashboard>("GET",
     `${projectPath(id)}/dashboard?${new URLSearchParams({ viewerId: member(id, viewerId) })}`),
+  getInbox: async (id: string, viewerId?: string) => readInbox(await request<unknown>("GET",
+    `${projectPath(id)}/inbox?${new URLSearchParams({ viewerId: member(id, viewerId) })}`)),
+  setMemberStatus: (id: string, input: StatusInput, viewerId?: string) => {
+    const viewer = member(id, viewerId);
+    return request<unknown>("POST", `${projectPath(id)}/members/${encodeURIComponent(viewer)}/status`, { ...input, viewerId: viewer });
+  },
   getMeter: (id: string) => request<ComputeMeter>("GET", `${projectPath(id)}/meter`),
   getReport: (id: string) => request<Report>("GET", `${projectPath(id)}/report`),
   disputeJudgment: (id: string, sha: string, input: DisputeInput, memberId?: string) =>

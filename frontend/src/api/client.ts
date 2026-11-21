@@ -18,7 +18,7 @@ export type UpdatePlanInput = Pick<TaskMap, "tasks" | "checkpoints" | "gracePeri
 export interface DisputeInput { note: string; filePaths?: string[] }
 
 export class ApiError extends Error {
-  constructor(message: string, public readonly status: number) {
+  constructor(message: string, public readonly status: number, public readonly details?: unknown) {
     super(message);
     this.name = "ApiError";
   }
@@ -44,21 +44,26 @@ function member(projectId: string, memberId = getViewerId(projectId)): string {
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   if (useMocks) return await mockRequest(method, path, body) as T;
   const multipart = body instanceof FormData;
-  const response = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers: body === undefined || multipart ? undefined : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      method,
+      headers: body === undefined || multipart ? undefined : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(`Could not reach the API for ${method} ${path}. Check the backend connection and CORS configuration.`, 0);
+  }
   const text = await response.text();
   let data: unknown;
   try { data = text ? JSON.parse(text) : undefined; }
   catch {
-    throw new ApiError(response.ok ? "The server returned invalid JSON." : `Request failed (${response.status}).`, response.status);
+    throw new ApiError(response.ok ? `The server returned invalid JSON for ${method} ${path}.` : `${method} ${path} failed (${response.status}).`, response.status);
   }
   if (!response.ok) {
     const message = data && typeof data === "object" && "error" in data && typeof data.error === "string"
-      ? data.error : `Request failed (${response.status}).`;
-    throw new ApiError(message, response.status);
+      ? data.error : `${method} ${path} failed (${response.status}).`;
+    throw new ApiError(message, response.status, data);
   }
   return data as T;
 }

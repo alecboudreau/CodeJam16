@@ -712,7 +712,7 @@ VITE_USE_MOCKS=true
 - `demo/make-demo-repo.sh` uses `git commit --date` so the timeline looks like 3 real weeks.
 - `npm run demo:seed` creates project `demo-paylite` with all four members linked to the presenter's Discord account (`-- --discord <user-id>`, or whoever last ran `/link`), so every demo DM lands on one screen. Re-running it resets the demo.
 - "Simulate 1 week" runs the real schedule on `demo_now` (extra check-ins at 00:00, 06:00, 12:00 that skip when nothing is due, and the daily one at 18:00). Each day's commits arrive at its 18:00 check-in.
-- Keep a **cached fallback** of the plan, judgments, nudges, dispute result and report in case the Wi-Fi or API fails.
+- **Cached fallback:** set `LLM_CACHE=fallback` in `.env` for rehearsals and the demo. Every successful Claude answer is saved to `demo/llm-cache.json`; if a call fails on stage (no Wi-Fi, API down), the saved answer for the same prompt is used and the compute meter shows the same numbers. Do one full rehearsal (seed → Simulate → Blocked → Run check-in → alias → dispute → report) with the API up to record everything, then commit `demo/llm-cache.json`. `LLM_CACHE=replay` runs from saved answers only (no network, no cost). Discord still needs internet: without it, DMs show as "not sent" in the trace.
 
 ---
 

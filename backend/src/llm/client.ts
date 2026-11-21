@@ -2,10 +2,56 @@
 // callSmall() / callBig() return JSON validated with a zod schema, retry once on bad JSON,
 // and log tokens, cost and energy for every attempt in llm_calls.
 import Anthropic from "@anthropic-ai/sdk";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ZodType, ZodTypeDef } from "zod";
-import { config } from "../config";
+import { config, ROOT_DIR } from "../config";
 import { db, newId, nowIso } from "../db/db";
 import { costOf } from "./meter";
+
+// ---------- cached fallback for the live demo (README §15) ----------
+// LLM_CACHE=off      (default) no cache
+// LLM_CACHE=fallback every successful answer is saved; if a call fails (no Wi-Fi, API down, bad key),
+//                    the saved answer for the exact same prompt is used instead
+// LLM_CACHE=replay   saved answers only: no network, no cost (rehearsals); a missing answer is an error
+// Answers live in demo/llm-cache.json (LLM_CACHE_PATH), keyed by model + effort + prompt.
+type CacheMode = "off" | "fallback" | "replay";
+const cacheMode: CacheMode = (["fallback", "replay"] as const).find((m) => m === process.env.LLM_CACHE) ?? "off";
+const cachePath = resolve(ROOT_DIR, process.env.LLM_CACHE_PATH ?? "demo/llm-cache.json");
+
+interface CacheEntry {
+  model: string;
+  text: string;
+  inputTokens: number;
+  outputTokens: number;
+  savedAt: string;
+}
+let cache: Record<string, CacheEntry> | undefined;
+
+function readCache(): Record<string, CacheEntry> {
+  if (!cache) {
+    try {
+      cache = existsSync(cachePath) ? (JSON.parse(readFileSync(cachePath, "utf8")) as Record<string, CacheEntry>) : {};
+    } catch {
+      console.warn(`llm cache: couldn't read ${cachePath}, starting empty`);
+      cache = {};
+    }
+  }
+  return cache;
+}
+
+function saveToCache(key: string, entry: CacheEntry): void {
+  const c = readCache();
+  c[key] = entry;
+  writeFileSync(cachePath, JSON.stringify(c, null, 1) + "\n");
+}
+
+const cacheKey = (model: string, effort: Effort, system: string, messages: Anthropic.MessageParam[]) =>
+  createHash("sha256").update(JSON.stringify({ model, effort, system, messages })).digest("hex");
+
+/** No saved answer for this exact prompt (LLM_CACHE=replay). */
+export class LlmCacheMissError extends Error {}
 
 export type LlmPurpose = "taskmap" | "judge" | "escalate" | "dispute" | "nudge" | "report";
 export type Effort = "low" | "medium" | "high";
@@ -37,7 +83,9 @@ const JSON_ONLY =
 let anthropic: Anthropic | undefined;
 function getClient(): Anthropic {
   // With no key in .env the SDK falls back to ANTHROPIC_API_KEY / an `ant auth login` profile.
-  anthropic ??= new Anthropic(config.anthropicApiKey ? { apiKey: config.anthropicApiKey } : {});
+  // With the fallback on, fail fast (no 10-minute hang on bad Wi-Fi) so the cached answer kicks in.
+  const fast = cacheMode === "fallback" ? { timeout: 90_000, maxRetries: 1 } : {};
+  anthropic ??= new Anthropic({ ...(config.anthropicApiKey ? { apiKey: config.anthropicApiKey } : {}), ...fast });
   return anthropic;
 }
 
@@ -74,23 +122,36 @@ async function send<T>(
   req: LlmRequest<T>,
   messages: Anthropic.MessageParam[],
 ): Promise<string> {
-  const params = {
-    model,
-    max_tokens: req.maxTokens ?? 16000,
-    system: `${req.system}\n\n${JSON_ONLY}`,
-    messages,
-    output_config: { effort },
+  const system = `${req.system}\n\n${JSON_ONLY}`;
+  const key = cacheKey(model, effort, system, messages);
+
+  // Cached answers are logged with their original token counts, so the compute meter is unchanged.
+  const fromCache = (entry: CacheEntry): string => {
+    logCall(req, entry.model, entry.inputTokens, entry.outputTokens);
+    return entry.text;
   };
-  // The big model gets server-side refusal fallbacks: if it declines, the API re-runs the same
-  // request on a fallback model inside the same call. The small model has no fallback.
-  const response =
-    model === config.bigModel
-      ? await getClient().beta.messages.create({
-          ...params,
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
-        })
-      : await getClient().messages.create(params);
+
+  if (cacheMode === "replay") {
+    const entry = readCache()[key];
+    if (!entry) throw new LlmCacheMissError(`no cached answer for this ${req.purpose} prompt (LLM_CACHE=replay)`);
+    return fromCache(entry);
+  }
+
+  const params = { model, max_tokens: req.maxTokens ?? 16000, system, messages, output_config: { effort } };
+  let response;
+  try {
+    // The big model gets server-side refusal fallbacks: if it declines, the API re-runs the same
+    // request on a fallback model inside the same call. The small model has no fallback.
+    response =
+      model === config.bigModel
+        ? await getClient().beta.messages.create({ ...params, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" })
+        : await getClient().messages.create(params);
+  } catch (e) {
+    const entry = cacheMode === "fallback" ? readCache()[key] : undefined;
+    if (!entry) throw e;
+    console.warn(`llm cache: ${req.purpose} call failed (${(e as Error).message.slice(0, 80)}), using the saved answer`);
+    return fromCache(entry);
+  }
 
   // Log the model that actually served the request (it differs after a fallback).
   logCall(req, response.model, response.usage.input_tokens, response.usage.output_tokens);
@@ -98,10 +159,14 @@ async function send<T>(
   if (response.stop_reason === "refusal") {
     throw new LlmRefusalError(response.model, response.stop_details?.category ?? null);
   }
-  return response.content
+  const text = response.content
     .flatMap((b) => (b.type === "text" ? [b.text] : []))
     .join("")
     .trim();
+  if (cacheMode === "fallback") {
+    saveToCache(key, { model: response.model, text, inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens, savedAt: nowIso() });
+  }
+  return text;
 }
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };

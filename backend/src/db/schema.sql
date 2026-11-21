@@ -46,3 +46,18 @@ CREATE INDEX IF NOT EXISTS checkins_project ON checkins (project_id);
 CREATE INDEX IF NOT EXISTS trace_steps_checkin ON trace_steps (checkin_id);
 CREATE INDEX IF NOT EXISTS decisions_checkin ON decisions (checkin_id);
 CREATE INDEX IF NOT EXISTS llm_calls_project ON llm_calls (project_id);
+
+-- Supabase exposes tables through its public REST API to anyone with the publishable key (which is
+-- public: it's in the web app). Row-level security with no policies blocks that API entirely.
+-- Our backend connects as the database owner, which bypasses RLS, so it keeps full access.
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE checkpoints ENABLE ROW LEVEL SECURITY;
+ALTER TABLE raw_commits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE judgments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE disputes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE checkins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trace_steps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE decisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE llm_calls ENABLE ROW LEVEL SECURITY;

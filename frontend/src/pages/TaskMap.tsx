@@ -4,6 +4,7 @@ import { PutTaskMapBody, type Checkpoint, type PlanDraft, type PlanItemRef, type
 import { api } from "../api/client";
 import { useProject } from "../App";
 import AgreeBar from "../components/AgreeBar";
+import { LoadingState } from "../components/PageFeedback";
 
 const inputClass = "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-600";
 const buttonClass = "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50";
@@ -43,6 +44,8 @@ function PlanEditor({ project, viewerId }: { project: Project; viewerId: string 
   const [attempt, setAttempt] = useState(0);
   const mutating = useRef(false);
   const mounted = useRef(true);
+  const errorBox = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (error) errorBox.current?.focus(); }, [error]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
     let cancelled = false;
@@ -167,8 +170,8 @@ function PlanEditor({ project, viewerId }: { project: Project; viewerId: string 
         <p className="mt-2 text-sm text-gray-600">Review the work, checkpoints, and grace period together before agreeing.</p></div>
       <button type="button" className={buttonClass} disabled={loading || busy || dirty} onClick={() => { setNotice(""); setAttempt((n) => n + 1); }}>Refresh plan</button>
     </header>
-    {loading ? <p role="status">Loading your plan…</p> : <>
-      {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
+    {loading ? <LoadingState message="Loading your plan…" /> : <>
+      {error && <div ref={errorBox} tabIndex={-1} role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
       {!saved || !draft ? <button type="button" className={buttonClass} onClick={() => setAttempt((n) => n + 1)}>Retry loading plan</button> : <>
         <AgreeBar plan={saved} members={project.members} />
         {saved.pending && <AgreeBar plan={saved.pending} members={project.members} pending version={saved.version} />}

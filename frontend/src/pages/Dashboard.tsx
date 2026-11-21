@@ -8,6 +8,7 @@ import CheckpointList from "../components/CheckpointList";
 import MemberStatus from "../components/MemberStatus";
 import ActivityTimeline from "../components/ActivityTimeline";
 import EvidenceDrawer, { type DisputeSubmitted } from "../components/EvidenceDrawer";
+import { LoadingState } from "../components/PageFeedback";
 
 const buttonClass = "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -79,7 +80,7 @@ function ProjectDashboard({ projectId, viewerId }: { projectId: string; viewerId
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Dashboard</h1>
       <p className="mt-2 text-sm text-gray-600">A shared view of the plan, progress, and checkpoints.</p>
     </div><button type="button" className={buttonClass} disabled={loading || assigning} onClick={() => { setNotice(""); setAssignmentError(""); setAttempt((n) => n + 1); }}>Refresh dashboard</button></header>
-    {loading ? <p role="status">Loading project progress…</p> : error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800"><p>{error}</p><button type="button" className={`${buttonClass} mt-3`} onClick={() => setAttempt((n) => n + 1)}>Retry loading dashboard</button></div> : data && <>
+    {loading ? <LoadingState message="Loading project progress…" /> : error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800"><p>{error}</p><button type="button" className={`${buttonClass} mt-3`} onClick={() => setAttempt((n) => n + 1)}>Retry loading dashboard</button></div> : data && <>
       {!data.project.planActive && <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">The plan is awaiting agreement. Review and approve items in the <Link to="/taskmap" className="font-medium underline">task map</Link>.</p>}
       <section aria-label="Overall progress" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
         <TaskProgress label="Overall project progress" completion={data.overallProgress} />

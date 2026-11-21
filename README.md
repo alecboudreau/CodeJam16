@@ -690,16 +690,16 @@ VITE_USE_MOCKS=true
 
 1. **Hook:** "Raise your hand if you've had a teammate go quiet and nobody wanted to say anything."
 2. **Problem:** by the time it comes up, it's too late. Commit counts don't help: they're easy to game and they turn teammates against each other.
-3. **Live:**
-   - Paste the repo, upload `demo/spec.md` → the plan appears: tasks with points, checkpoints every few days, slides marked *untracked*, a 48-hour grace period → each member approves their own items, everyone approves the shared ones → **active**
-   - Click **Simulate 1 week** → the **agent trace** plays step by step:
-     *Pulled 14 commits → filtered 9 with no AI → small model judged 5 → 1 escalated → "Dashboard shows payment list" (Sam) missed → private DM sent*
-   - Point at the skipped runs: *"skipped: no checkpoint due soon"*, zero model calls
+3. **Live** (prepared with `npm run demo:seed`, so the plan is already approved and the demo clock sits at Sat Nov 7):
+   - *Optional opener:* show Setup + Task map. Upload `demo/spec.md` → the plan appears with points, checkpoints every few days, slides marked *untracked*, a 48-hour grace period, and per-item "I agree"
+   - Click **Simulate 1 week** (Sun Nov 8 → Sat Nov 14). The Trace page opens on Saturday's check-in:
+     *Pulled 4 commits → filtered 3 with no AI → small model judged 1 → "Dashboard shows the payment list" (Sam) missed → private DM sent*
+   - Use the history picker to show Tuesday (*filtered 5 of 6 with no AI → Jordan's "Settings page saves preferences" missed → DM*) and Thursday (*one team alert after the 48-hour grace*). Point at the skipped runs: *"skipped: no checkpoint due soon"*, zero model calls
    - The DM pops up in Discord on screen. Sam taps **Blocked → Alex**
-   - Click **Run check-in** → the trace shows: *Sam blocked by Alex → Sam's grace clock paused → nudged Alex about "Payment history endpoint"*
-   - Switch the member picker to **Jordan** → Jordan's private view: **"22 commits, checkpoint 'Settings page saves preferences' not met"**, and the evidence drawer shows they're mostly formatting. Jordan's grace period ran out mid-week, so the group channel got one alert that names the checkpoint, with no numbers.
-   - Jordan disputes, pointing at `src/settings/` → the big model re-judges with the current files → the trace shows the result
-   - Point at the **compute meter**: this week cost cents, the naive approach costs dollars, plus the skipped runs
+   - Click **Run check-in** → *Sam blocked by Alex → grace clock paused → Alex nudged ("Sam is waiting on you")*
+   - Switch the member picker to **Jordan** → Jordan's private view shows **15 commits** and the checkpoint *alerted*. Assign the unknown `jordan@laptop.local` identity to Jordan → **22 commits, checkpoint not met**, and the evidence drawer shows it's almost all formatting. The team alert in Discord named the checkpoint, with no numbers
+   - Jordan disputes the checkpoint, pointing at `frontend/settings/` → the big model re-judges with the current files → `alerted → met` in the trace
+   - Point at the **compute meter**: 22 of 31 commits filtered with no AI, skipped runs, cents vs the naive approach
    - Click **Status report** → met / pending / missed per checkpoint, no rankings
 4. **Close:** "An agent that spends compute only where it matters, keeps your evidence private, and gets the team talking before it's too late."
 
@@ -710,7 +710,8 @@ VITE_USE_MOCKS=true
   - **Jordan**: 22 small formatting commits, some from an unmatched git identity. The *Settings page* checkpoint is due early in the week, gets missed, and gets a team alert once the grace period runs out.
   - **Sam**: owns *Dashboard UI*, which depends on Alex's *Payment history endpoint*. Nothing committed. The checkpoint is due at the end of the simulated week.
 - `demo/make-demo-repo.sh` uses `git commit --date` so the timeline looks like 3 real weeks.
-- "Simulate 1 week" runs one check-in per simulated day on `demo_now`, with extra check-ins skipped when nothing is due.
+- `npm run demo:seed` creates project `demo-paylite` with all four members linked to the presenter's Discord account (`-- --discord <user-id>`, or whoever last ran `/link`), so every demo DM lands on one screen. Re-running it resets the demo.
+- "Simulate 1 week" runs the real schedule on `demo_now` (extra check-ins at 00:00, 06:00, 12:00 that skip when nothing is due, and the daily one at 18:00). Each day's commits arrive at its 18:00 check-in.
 - Keep a **cached fallback** of the plan, judgments, nudges, dispute result and report in case the Wi-Fi or API fails.
 
 ---

@@ -1,7 +1,7 @@
 // "Simulate 1 week" (owner: Person C, C7). README §15.
 // Advances projects.demo_now day by day on the real schedule (extra check-ins at 00:00, 06:00 and
-// 12:00, the daily one at 18:00, in config.timezone), feeding each commit from
-// demo/commits-week2.json once the clock passes its timestamp.
+// 12:00, the daily one at 18:00, in config.timezone). Each day's commits from demo/commits-week2.json
+// are delivered at that day's 18:00 check-in.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { config, ROOT_DIR } from "../config";
@@ -92,8 +92,9 @@ export async function simulateDays(projectId: string, days: number, opts: { noti
       const slots = [...EXTRA_HOURS.map((h) => ({ h, kind: "extra" as const })), { h: DAILY_HOUR, kind: "simulate" as const }];
       for (const slot of slots) {
         const at = zonedInstant(day, slot.h);
-        // Feed every commit made up to this moment (already-stored ones are ignored).
-        for (const c of commits) {
+        // Each day's commits arrive at the 18:00 check-in, so every daily trace tells the whole day.
+        // Extra check-ins still run (or skip) on the real deadline rule; they just get no new commits.
+        for (const c of slot.kind === "simulate" ? commits : []) {
           if (new Date(c.committedAt) > at) break;
           if (insertRawCommit(projectId, { sha: c.sha, repo, authorLogin: c.authorLogin, coAuthors: c.coAuthors, message: c.message, committedAt: c.committedAt, files: c.files, diff: c.diff })) {
             result.commitsFed++;

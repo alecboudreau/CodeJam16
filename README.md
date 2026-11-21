@@ -664,7 +664,8 @@ VITE_USE_MOCKS=true
 - **Mocks first:** the frontend runs on `VITE_USE_MOCKS=true` until hour 14.
 - **Secrets:** `.env` is git-ignored; keys go in a private Discord DM.
 - **Check-in:** 5 minutes every ~4 hours on what's done, what's blocked.
-- **Issues:** one GitHub Issue per feature, assigned to its owner.
+- **Issues:** one GitHub Issue per feature (`[A1]`…`[C12]`), labelled `person-a` / `person-b` / `person-c` with a milestone (`Hour 8`, `Hour 14`, `Hour 20`, `Should`, `Final`). Each lists the files it may touch and a "Done when" checklist.
+- **Working with Claude Code:** say "do #12". It reads the issue, works only on it, and opens a PR with `Closes #12` (rules in `CLAUDE.md`).
 
 ---
 
@@ -717,7 +718,7 @@ VITE_USE_MOCKS=true
 ## 16. Notes for Claude Code
 
 - Read this README first; `shared/src/types.ts` is the source of truth for data shapes.
-- Work only inside the folders owned by the person you are helping (section 6) unless told otherwise.
+- Work one GitHub issue at a time and only inside the files it lists (see `CLAUDE.md`).
 - Every LLM call goes through `backend/src/llm/client.ts` so tokens and cost are always logged.
 - LLM outputs must be validated with the zod schemas in `shared/src/schemas.ts`.
 - Decide rules are plain code (section 10). Never ask a model *whether* to nudge, only *how to word* it.

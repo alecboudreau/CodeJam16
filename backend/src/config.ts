@@ -24,11 +24,14 @@ export const config = {
 
 // Agent rules (README section 10). Tune here, nowhere else.
 export const rules = {
-  BEHIND_CLOCK_THRESHOLD: 0.25,   // progress more than 25 pts below time elapsed
-  QUIET_DAYS: 5,                  // no substantial commit for 5 days
-  NUDGE_COOLDOWN_DAYS: 2,         // max one nudge per person per 2 days; "On it" lasts this long
-  IGNORED_DMS_BEFORE_GROUP: 2,    // 2 ignored DMs → group post
-  CHECKIN_CRON: "0 18 * * *",     // daily at 6 pm (in config.timezone)
-  LIGHT_CAP: 0.1,                 // light changes count for at most 10% of their estimate
-  ESCALATE_BELOW: 0.6,            // re-judge with the big model below this confidence
+  NUDGE_COOLDOWN_DAYS: 2,           // max one reminder per person per 2 days; "On it" lasts this long
+  CHECKIN_CRON: "0 18 * * *",       // daily at 6 pm (in config.timezone)
+  EXTRA_CHECK_CRON: "0 0,6,12 * * *", // every 6 hours, skipping the 18:00 daily slot
+  EXTRA_CHECK_EVERY_HOURS: 6,
+  CHECKPOINT_WINDOW_HOURS: 48,      // extra check-ins only run if a checkpoint is due this soon
+  DEFAULT_GRACE_PERIOD_HOURS: 48,   // only used if the plan prompt didn't propose one
+  LIGHT_CAP: 0.1,                   // light changes count for at most 10% of their estimate
+  ESCALATE_BELOW: 0.6,              // re-judge with the big model below this confidence
+  DISPUTE_MAX_FILES: 5,             // files fetched for a dispute
+  DISPUTE_FILE_MAX_LINES: 200,      // each file trimmed to this many lines
 } as const;

@@ -7,6 +7,7 @@ import { projectsRouter } from "./routes/projects";
 import { taskmapRouter } from "./routes/taskmap";
 import { checkinRouter } from "./routes/checkin";
 import { disputesRouter } from "./routes/disputes";
+import { dashboardRouter } from "./routes/dashboard";
 
 const app = express();
 app.use(cors({ origin: config.frontendUrl }));
@@ -20,6 +21,7 @@ app.use("/api", projectsRouter);
 app.use("/api", taskmapRouter);
 app.use("/api", checkinRouter);
 app.use("/api", disputesRouter);
+app.use("/api", dashboardRouter);
 
 // Invalid bodies (zod) → 400 with the issues; anything else → 500.
 const onError: ErrorRequestHandler = (err, _req, res, _next) => {

@@ -3,6 +3,7 @@ import express, { type ErrorRequestHandler } from "express";
 import cors from "cors";
 import { ZodError } from "zod";
 import { config } from "./config";
+import { authRouter, requireMember, requireSignIn } from "./auth/auth";
 import { startBot } from "./discord/bot";
 import { startScheduler } from "./scheduler/cron";
 import { projectsRouter } from "./routes/projects";
@@ -21,6 +22,12 @@ app.use(express.json({ limit: "5mb" }));
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
+
+// Sign-in (#62): every /api request needs a Supabase token when sign-in is on, and any
+// /api/projects/:id/... request must come from a member of that project.
+app.use("/api", requireSignIn);
+app.use("/api/projects/:id", requireMember);
+app.use("/api", authRouter);
 
 app.use("/api", projectsRouter);
 app.use("/api", taskmapRouter);

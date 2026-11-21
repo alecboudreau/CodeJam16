@@ -7,6 +7,7 @@ import TaskProgress from "../components/TaskProgress";
 import CheckpointList from "../components/CheckpointList";
 import MemberStatus from "../components/MemberStatus";
 import ActivityTimeline from "../components/ActivityTimeline";
+import EvidenceDrawer, { type DisputeSubmitted } from "../components/EvidenceDrawer";
 
 const buttonClass = "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -39,6 +40,14 @@ function ProjectDashboard({ projectId, viewerId }: { projectId: string; viewerId
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [projectId, viewerId, attempt]);
+
+  const recordDispute: DisputeSubmitted = (dispute, dashboard) => {
+    if (!mounted.current || dispute.memberId !== viewerId) return;
+    setData((current) => {
+      if (dashboard?.project.id === projectId && dashboard.viewerId === viewerId) return dashboard;
+      return current ? { ...current, myDisputes: [dispute, ...current.myDisputes.filter((d) => d.id !== dispute.id)] } : current;
+    });
+  };
 
   async function assign(event: FormEvent<HTMLFormElement>, login: string) {
     event.preventDefault();
@@ -87,7 +96,8 @@ function ProjectDashboard({ projectId, viewerId }: { projectId: string; viewerId
               <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-sm text-gray-600">Owner: {owner?.name ?? "Unassigned"}</span>{owner && <MemberStatus member={owner} members={data.project.members} />}</div>
             </div><span className="text-xs text-gray-500">{task.tracked ? `${task.points} effort points` : "Untracked"}</span></div>
             {task.description && <p className="mt-3 text-sm leading-6 text-gray-600">{task.description}</p>}
-            {task.tracked ? <><div className="mt-4"><TaskProgress label={`${task.title} completion`} completion={task.completion} /></div><div className="mt-4 border-t border-gray-100 pt-1"><CheckpointList checkpoints={checkpoints} /></div></> : <p className="mt-4 text-sm text-gray-500">Outside code tracking. This task has no checkpoints and does not trigger reminders.</p>}
+            {task.tracked ? <><div className="mt-4"><TaskProgress label={`${task.title} completion`} completion={task.completion} /></div><div className="mt-4 border-t border-gray-100 pt-1"><CheckpointList checkpoints={checkpoints} projectId={projectId} viewerId={viewerId} disputes={data.myDisputes} onSubmitted={recordDispute} /></div></> : <p className="mt-4 text-sm text-gray-500">Outside code tracking. This task has no checkpoints and does not trigger reminders.</p>}
+            <EvidenceDrawer projectId={projectId} viewerId={viewerId} task={task} checkpoints={checkpoints} evidence={data.myEvidence.find((entry) => entry.taskId === task.id)} disputes={data.myDisputes} onSubmitted={recordDispute} />
           </article>;
         })}
       </section>

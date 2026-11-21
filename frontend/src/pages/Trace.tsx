@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import type { Project, TraceStep as Step } from "@enforcer/shared";
 import { api, ApiError, useMocks } from "../api/client";
 import { useProject } from "../App";
 import TraceStep from "../components/TraceStep";
+import ComputeMeter from "../components/ComputeMeter";
+import SimulateButton from "../components/SimulateButton";
 
 interface Checkin {
   id: string;
@@ -54,11 +56,12 @@ async function getHistory(projectId: string): Promise<Checkin[]> {
 
 export default function Trace() {
   const { project } = useProject();
+  const [params, setParams] = useSearchParams();
   if (!project) return <div className="mx-auto max-w-5xl"><h1 className="text-3xl font-semibold">Agent trace</h1><p className="mt-4">Create a project in <Link to="/setup" className="text-blue-700 underline">Setup</Link> to view check-ins.</p></div>;
-  return <ProjectTrace key={project.id} project={project} />;
+  return <ProjectTrace key={project.id} project={project} requestedCheckin={params.get("checkinId") ?? ""} onSelect={(id) => setParams({ checkinId: id })} />;
 }
 
-function ProjectTrace({ project }: { project: Project }) {
+function ProjectTrace({ project, requestedCheckin, onSelect }: { project: Project; requestedCheckin: string; onSelect: (id: string) => void }) {
   const [history, setHistory] = useState<Checkin[]>([]);
   const [selected, setSelected] = useState("");
   const [steps, setSteps] = useState<Step[]>([]);
@@ -68,6 +71,7 @@ function ProjectTrace({ project }: { project: Project }) {
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [simulating, setSimulating] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [historyAttempt, setHistoryAttempt] = useState(0);
   const mounted = useRef(true);
@@ -81,11 +85,11 @@ function ProjectTrace({ project }: { project: Project }) {
     getHistory(project.id).then((rows) => {
       if (cancelled) return;
       setHistory(rows);
-      setSelected((current) => rows.some((row) => row.id === current) ? current : rows[0]?.id ?? "");
+      setSelected((current) => requestedCheckin || (rows.some((row) => row.id === current) ? current : rows[0]?.id ?? ""));
     }).catch((error: unknown) => { if (!cancelled) setHistoryError(error instanceof Error ? error.message : "Could not load check-ins."); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [project.id, historyAttempt]);
+  }, [project.id, historyAttempt, requestedCheckin]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,8 +108,12 @@ function ProjectTrace({ project }: { project: Project }) {
         if (cancelled) return;
         const ordered = trace.filter((step) => step.checkinId === selected).sort((a, b) => a.order - b.order);
         setSteps(ordered);
-        setHistory(rows);
-        const row = rows.find((row) => row.id === selected);
+        const updated = useMocks && terminal(ordered) ? rows.map((row) => row.id === selected ? {
+          ...row, skipped: ordered.some((step) => step.step === "skip"), finishedAt: ordered.at(-1)!.at,
+        } : row) : rows;
+        if (useMocks) mockHistory.set(project.id, updated);
+        setHistory(updated);
+        const row = updated.find((row) => row.id === selected);
         const active = row ? !row.finishedAt : !terminal(ordered);
         setRunning(active);
         if (!active) clearInterval(interval);
@@ -130,20 +138,25 @@ function ProjectTrace({ project }: { project: Project }) {
   }, [steps.length, visible]);
 
   async function run() {
-    if (startLock.current || starting || running || !project.planActive) return;
+    if (startLock.current || starting || running || simulating || !project.planActive) return;
     startLock.current = true;
     setStarting(true);
     setError("");
     try {
       const { checkinId } = await api.runCheckin(project.id);
       if (!mounted.current) return;
-      const row: Checkin = { id: checkinId, projectId: project.id, kind: "manual", skipped: false, startedAt: new Date().toISOString() };
-      if (useMocks) mockHistory.set(project.id, [row, ...(mockHistory.get(project.id) ?? []).filter((r) => r.id !== checkinId)]);
-      setHistory((rows) => [row, ...rows.filter((r) => r.id !== checkinId)]);
-      setSelected(checkinId);
-      setAttempt((n) => n + 1);
+      selectNewCheckin(checkinId, "manual");
     } catch (error: unknown) { if (mounted.current) setError(error instanceof Error ? error.message : "Could not start the check-in."); }
     finally { startLock.current = false; if (mounted.current) setStarting(false); }
+  }
+
+  function selectNewCheckin(checkinId: string, kind: Checkin["kind"], updateUrl = true) {
+    const row: Checkin = { id: checkinId, projectId: project.id, kind, skipped: false, startedAt: new Date().toISOString() };
+    if (useMocks) mockHistory.set(project.id, [row, ...(mockHistory.get(project.id) ?? []).filter((r) => r.id !== checkinId)]);
+    setHistory((rows) => [row, ...rows.filter((r) => r.id !== checkinId)]);
+    setSelected(checkinId);
+    setAttempt((n) => n + 1);
+    if (updateUrl) onSelect(checkinId);
   }
 
   const current = history.find((row) => row.id === selected);
@@ -151,12 +164,14 @@ function ProjectTrace({ project }: { project: Project }) {
   const checkinInProgress = running || history.some((row) => !row.finishedAt);
   return <div className="mx-auto max-w-5xl space-y-6 pb-10">
     <header className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-medium text-blue-700">{project.name}</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Agent trace</h1><p className="mt-2 text-sm text-gray-600">Follow observe → filter → judge → decide → act, one step at a time.</p></div>
-      <button type="button" disabled={starting || checkinInProgress || loading || !project.planActive} onClick={run} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">{starting ? "Starting check-in…" : "Run check-in"}</button>
+      <div className="flex flex-wrap items-start gap-3"><button type="button" disabled={starting || simulating || checkinInProgress || loading || !project.planActive} onClick={run} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">{starting ? "Starting check-in…" : "Run check-in"}</button>
+        <SimulateButton projectId={project.id} planActive={project.planActive} disabled={starting || checkinInProgress || loading} onBusyChange={setSimulating} onStarted={(id) => selectNewCheckin(id, "simulate", false)} />
+      </div>
     </header>
     {!project.planActive && <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">Approve the plan in the <Link to="/taskmap" className="underline">task map</Link> before running a check-in.</p>}
-    <section aria-labelledby="history-heading" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 id="history-heading" className="text-lg font-semibold">Check-in history</h2><button type="button" disabled={loading || starting || running} onClick={() => setHistoryAttempt((n) => n + 1)} className={buttonClass}>Refresh history</button></div>
+    <section aria-labelledby="history-heading" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 id="history-heading" className="text-lg font-semibold">Check-in history</h2><button type="button" disabled={loading || starting || running || simulating} onClick={() => setHistoryAttempt((n) => n + 1)} className={buttonClass}>Refresh history</button></div>
       {loading ? <p role="status" className="mt-3 text-sm">Loading check-ins…</p> : historyError ? <div role="alert" className="mt-3 text-sm text-red-800">{historyError}<button type="button" className={`${buttonClass} ml-3`} onClick={() => setHistoryAttempt((n) => n + 1)}>Retry history</button></div> : !history.length ? <p className="mt-3 text-sm text-gray-500">No check-ins yet. Run your first check-in to see the agent at work.</p> : <label className="mt-4 block text-sm font-medium">Select a check-in
-        <select value={selected} disabled={starting} onChange={(event) => setSelected(event.target.value)} className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+        <select value={selected} disabled={starting || simulating} onChange={(event) => { setSelected(event.target.value); onSelect(event.target.value); }} className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
           {history.map((row) => <option key={row.id} value={row.id}>{new Date(row.startedAt).toLocaleString()} · {row.kind} · {row.skipped ? "Skipped" : row.finishedAt ? "Finished" : "Running"} · {row.id}</option>)}
         </select>
       </label>}
@@ -168,5 +183,6 @@ function ProjectTrace({ project }: { project: Project }) {
       <ol aria-label="Check-in trace steps" aria-live="polite" aria-relevant="additions" className="space-y-3">{steps.slice(0, visible).map((step) => <TraceStep key={`${step.checkinId}:${step.order}`} step={step} />)}</ol>
       {!steps.length && !error && <p className="text-sm text-gray-500">{current?.finishedAt ? "This check-in has no recorded steps." : "The agent has not recorded a step yet."}</p>}
     </section>}
+    <ComputeMeter projectId={project.id} refreshKey={current?.finishedAt ? `${current.id}:${current.finishedAt}` : ""} />
   </div>;
 }

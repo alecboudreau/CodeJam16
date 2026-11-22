@@ -1517,6 +1517,92 @@
   vertical-align: 1px;
   white-space: nowrap;
 }
+/* My work: one block per project, tasks in due-date order */
+.work-projects {
+  display: grid;
+  gap: 32px;
+}
+.work-project {
+  padding: 20px 22px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-soft);
+}
+.work-project-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+.work-project-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.work-project-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-control);
+  background: var(--umber);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+.work-project-meta {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.work-due {
+  display: flex;
+  flex-direction: column;
+  width: 96px;
+  flex: 0 0 auto;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--umber);
+  font-variant-numeric: tabular-nums;
+}
+.work-due span {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--clay);
+}
+.work-due.is-overdue time {
+  color: var(--clay);
+}
+.work-detail {
+  display: grid;
+  gap: 8px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.work-facts {
+  font-size: 0.8125rem;
+  color: var(--subtle);
+}
+.work-detail .contract-checkpoints {
+  margin-top: 6px;
+}
+@media (max-width: 640px) {
+  .work-project {
+    padding: 16px 14px 16px;
+  }
+  .work-due {
+    width: 72px;
+  }
+}
 @keyframes working {
   from {
     opacity: 0.45;

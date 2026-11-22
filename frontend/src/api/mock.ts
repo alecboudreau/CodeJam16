@@ -205,8 +205,19 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       const login = input?.githubUsername?.trim().replace(/^@/, "").toLowerCase() ?? "";
       const state = [...states.values()].find((item) => inviteFor(item.project.id).toLowerCase() === code);
       if (!state) return fail("No group uses that invite code.", 404);
-      if (!state.project.members.some((member) => member.githubUsername.toLowerCase() === login || member.githubAliases.some((alias) => alias.toLowerCase() === login))) {
+      const member = state.project.members.find((member) => member.githubUsername.toLowerCase() === login || member.githubAliases.some((alias) => alias.toLowerCase() === login));
+      if (!member) {
         return fail("That GitHub username isn't on this group's team.", 404);
+      }
+      if (member.contractJoinPending && state.plan.active) {
+        const add = (ids: string[]) => [...new Set([...ids, member.id])];
+        for (const task of state.plan.tasks) if (task.ownerId === member.id) task.approvedBy = add(task.approvedBy);
+        for (const cp of state.plan.checkpoints) if (cp.ownerId === null || cp.ownerId === member.id) cp.approvedBy = add(cp.approvedBy);
+        state.plan.graceApprovedBy = add(state.plan.graceApprovedBy);
+        member.contractJoinPending = false;
+        member.contractAcceptedAt = new Date().toISOString();
+        member.contractAcceptedVersion = state.plan.version;
+        refreshPlan(state);
       }
       return state.project;
     }
@@ -247,9 +258,10 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       if (state.project.members.some((m) => m.githubUsername.toLowerCase() === login.toLowerCase())) return fail(`GitHub username "${login}" is already on this team.`, 409);
       const member: Member = {
         id: `member-${state.project.members.length + 1}-${Date.now()}`, name, githubUsername: login, githubAliases: [],
-        email: input.email || undefined, status: "none",
+        email: input.email || undefined, status: "none", contractJoinPending: state.plan.active,
       };
       state.project.members.push(member);
+      refreshPlan(state);
       return member;
     }
     if (method === "POST" && parts[2] === "members" && parts[4] === "aliases") {

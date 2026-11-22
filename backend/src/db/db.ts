@@ -117,6 +117,9 @@ function rowToMember(r: Row): Member {
     status: ((r.status as MemberStatus | null) ?? "none"),
     blockedById: opt(r.blocked_by_id as string | null),
     statusAt: opt(r.status_at as string | null),
+    contractJoinPending: bool(r.contract_join_pending),
+    contractAcceptedAt: opt(r.contract_accepted_at as string | null),
+    contractAcceptedVersion: numOrNull(r.contract_accepted_version) ?? undefined,
   };
 }
 
@@ -135,12 +138,17 @@ export async function getMemberProjectId(memberId: string): Promise<string | und
 }
 
 export async function insertMember(projectId: string, input: MemberInput): Promise<Member> {
-  const id = newId();
-  await dbRun(
-    "INSERT INTO members (id, project_id, name, github_username, email, capacity_hours_per_week) VALUES (?, ?, ?, ?, ?, ?)",
-    id, projectId, input.name, input.githubUsername, input.email ?? null, input.capacityHoursPerWeek ?? null,
-  );
-  return (await getMember(id))!;
+  return tx(async () => {
+    // Match contract activation's project lock so a simultaneous invite cannot miss onboarding.
+    await dbGet("SELECT id FROM projects WHERE id = ? FOR UPDATE", projectId);
+    const id = newId();
+    await dbRun(
+      `INSERT INTO members (id, project_id, name, github_username, email, capacity_hours_per_week, contract_join_pending)
+       VALUES (?, ?, ?, ?, ?, ?, COALESCE((SELECT plan_active FROM projects WHERE id = ?), 0))`,
+      id, projectId, input.name, input.githubUsername, input.email ?? null, input.capacityHoursPerWeek ?? null, projectId,
+    );
+    return (await getMember(id))!;
+  });
 }
 
 export async function addGithubAlias(memberId: string, login: string): Promise<Member | undefined> {
@@ -237,6 +245,8 @@ export interface GroupSummary {
   deadline: string;
   memberName: string;
   inviteCode: string;
+  githubUsername?: string;
+  contractJoinPending?: boolean;
 }
 
 /**
@@ -248,7 +258,7 @@ export async function listGroups(user: { email?: string; discordId?: string } | 
   const discordId = user.discordId ?? "";
   const email = user.email?.toLowerCase() ?? "";
   const rows = await dbAll(
-    `SELECT p.id, p.name, p.plan_active, p.deadline, p.invite_code, p.created_at, m.name AS member_name, m.discord_id
+    `SELECT p.id, p.name, p.plan_active, p.deadline, p.invite_code, p.created_at, m.name AS member_name, m.discord_id, m.github_username, m.contract_join_pending
      FROM projects p
      JOIN members m ON m.project_id = p.id
      WHERE (? <> '' AND m.discord_id = ?)
@@ -270,6 +280,8 @@ export async function listGroups(user: { email?: string; discordId?: string } | 
       planActive: bool(row.plan_active),
       deadline: row.deadline as string,
       memberName: (row.member_name as string) ?? "",
+      githubUsername: row.github_username as string,
+      contractJoinPending: bool(row.contract_join_pending),
       inviteCode: await ensureInviteCode(row.id as string, (row.invite_code as string | null) ?? null),
     });
   }
@@ -327,9 +339,37 @@ export async function joinGroup(
     if (discordId && member.discordId !== discordId) await setMemberDiscordId(member.id, discordId);
   }
 
+  await acceptContractOnJoin(projectId, member.id);
   const project = await getProject(projectId);
   if (!project) return { error: "No group uses that invite code.", status: 404 };
   return { project };
+}
+
+/** A late invite accepts only the current live terms, once. Pending proposals still need approval. */
+export async function acceptContractOnJoin(projectId: string, memberId: string): Promise<void> {
+  await tx(async () => {
+    // Serialize joins with project updates, and repeated joins with each other.
+    await dbGet("SELECT id FROM projects WHERE id = ? FOR UPDATE", projectId);
+    const member = await getMember(memberId);
+    const state = await getProjectPlanState(projectId);
+    if (!member?.contractJoinPending || !state?.planActive || await getMemberProjectId(memberId) !== projectId) return;
+    const add = (ids: string[]) => [...new Set([...ids, memberId])];
+    for (const task of await getTasks(projectId)) {
+      if (task.ownerId === memberId) {
+        await dbRun("UPDATE tasks SET approved_by = ? WHERE id = ? AND project_id = ?", toJson(add(task.approvedBy)), task.id, projectId);
+      }
+    }
+    for (const checkpoint of await getCheckpoints(projectId)) {
+      if (checkpoint.ownerId === null || checkpoint.ownerId === memberId) {
+        await dbRun("UPDATE checkpoints SET approved_by = ? WHERE id = ? AND project_id = ?", toJson(add(checkpoint.approvedBy)), checkpoint.id, projectId);
+      }
+    }
+    await updateProjectPlanState(projectId, { graceApprovedBy: add(state.graceApprovedBy) });
+    await dbRun(
+      "UPDATE members SET contract_join_pending = 0, contract_accepted_at = ?, contract_accepted_version = ? WHERE id = ? AND project_id = ?",
+      nowIso(), state.planVersion, memberId, projectId,
+    );
+  });
 }
 
 /** Plan-level fields that live on the projects row. */

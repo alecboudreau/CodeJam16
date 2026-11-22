@@ -11,6 +11,13 @@ CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, seq BIGSERIAL, project_
   github_username TEXT, github_aliases TEXT DEFAULT '[]', discord_id TEXT, email TEXT,
   capacity_hours_per_week INTEGER, status TEXT DEFAULT 'none', blocked_by_id TEXT,
   status_at TEXT);
+ALTER TABLE members ADD COLUMN IF NOT EXISTS contract_join_pending INTEGER DEFAULT 0;
+ALTER TABLE members ADD COLUMN IF NOT EXISTS contract_accepted_at TEXT;
+ALTER TABLE members ADD COLUMN IF NOT EXISTS contract_accepted_version INTEGER;
+-- Recover late invitees created before acceptance-on-join was introduced. Existing approvals stay intact.
+UPDATE members m SET contract_join_pending = 1 FROM projects p
+WHERE m.project_id = p.id AND p.plan_active = 1 AND m.contract_accepted_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(p.grace_approved_by, '[]')::jsonb) a(id) WHERE a.id = m.id);
 CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, seq BIGSERIAL, project_id TEXT, title TEXT, description TEXT,
   points INTEGER, owner_id TEXT, paths TEXT, tracked INTEGER DEFAULT 1,
   depends_on TEXT DEFAULT '[]', completion DOUBLE PRECISION DEFAULT 0, approved_by TEXT DEFAULT '[]');

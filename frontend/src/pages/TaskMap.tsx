@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   PutTaskMapBody,
   type Checkpoint,
+  type Member,
   type PlanDraft,
   type PlanItemRef,
   type Project,
@@ -1233,6 +1234,11 @@ function ContractView({
   const graceChanged = !!plan.pending && plan.pending.gracePeriodHours !== plan.gracePeriodHours;
   const hasSigned = (id: string) => !plan.waitingOn.some((w) => w.memberIds.includes(id));
   const signedCount = members.filter((m) => hasSigned(m.id)).length;
+  const acceptedOnJoining = (member: Member) => !plan.pending && hasSigned(member.id)
+    && member.contractAcceptedVersion === plan.version && !!member.contractAcceptedAt;
+  const signatureLabel = (member: Member) => acceptedOnJoining(member)
+    ? "Accepted on joining"
+    : live && member.contractJoinPending ? "Invited" : hasSigned(member.id) ? "Signed" : "Waiting";
   const viewerMustSign = !!viewerId && !live && !hasSigned(viewerId);
   const step = live ? 3 : 2;
   const titleOf = (id: string) => terms.tasks.find((t) => t.id === id)?.title ?? "another task";
@@ -1253,7 +1259,7 @@ function ContractView({
           </p>
           <h2 id="contract-status-title">
             {live
-              ? "Everyone has signed. The contract is live."
+              ? "The contract is live."
               : viewerMustSign
                 ? "Read your part, then sign."
                 : `Waiting for ${remaining} more ${remaining === 1 ? "signature" : "signatures"}.`}
@@ -1261,8 +1267,8 @@ function ContractView({
           <ol className="contract-steps">
             {[
               "Read what each person promises to deliver, and by when.",
-              "Everyone signs their own part and the team rules.",
-              "Once everyone has signed, Enforcer checks progress at each checkpoint and nudges privately if one slips.",
+              live ? "New teammates accept the current contract when they join." : "Everyone signs their own part and the team rules.",
+              live ? "Enforcer checks progress at each checkpoint and nudges privately if one slips." : "Once everyone has signed, Enforcer checks progress at each checkpoint and nudges privately if one slips.",
             ].map((text, i) => (
               <li key={text} className={i + 1 < step ? "is-done" : i + 1 === step ? "is-current" : ""}>
                 <span aria-hidden="true">{i + 1 < step ? <Icon name="check" /> : i + 1}</span>
@@ -1271,12 +1277,12 @@ function ContractView({
             ))}
           </ol>
         </div>
-        <div className="contract-signatures" aria-label="Signatures">
+        <div className="contract-signatures" aria-label="Contract acceptance">
           <p>
             <strong>
               {signedCount} of {members.length}
             </strong>{" "}
-            signed{plan.pending ? " the change" : ""}
+            {plan.pending ? "signed the change" : "accepted"}
           </p>
           <ul>
             {members.map((m) => (
@@ -1284,12 +1290,16 @@ function ContractView({
                 <span aria-hidden="true">{hasSigned(m.id) && <Icon name="check" />}</span>
                 {m.name}
                 {m.id === viewerId && " (you)"}
-                <em>{hasSigned(m.id) ? "signed" : "waiting"}</em>
+                <em>{signatureLabel(m)}</em>
               </li>
             ))}
           </ul>
         </div>
       </section>
+
+      {live && members.some(acceptedOnJoining) && (
+        <p className="contract-notice">New teammates accept the current contract when they join. Existing commitments and approvals stay in place.</p>
+      )}
 
       {notice && (
         <p role="status" className="contract-notice">

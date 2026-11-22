@@ -630,6 +630,8 @@ npm run dev                   # runs backend (:3001) + frontend (:5173) together
 npm run demo:seed             # seeds the demo project
 ```
 
+Late teammates accept the current live team contract when they join with an invite code (or select **Join group** on an invitation). The join screen explains this, and the contract records **Accepted on joining** with the accepted version and timestamp. Existing work and signatures remain intact; pending proposals still require approval. Members listed before the contract goes live still use the normal signing flow. After applying the schema, verify this behavior against a test database with `DATABASE_URL=… npm run test:contract-join -w backend`; the test uses and removes its own isolated schema.
+
 After a schema change, run `npm run db:init` again (`CREATE … IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`). From a laptop each query is ~30 ms away, so Simulate takes ~2 minutes locally and a few seconds on Vercel.
 
 ### `.env.example`

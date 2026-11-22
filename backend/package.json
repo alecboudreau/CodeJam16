@@ -10,7 +10,8 @@
     "lint": "tsc -p .",
     "db:init": "tsx src/db/init.ts",
     "demo:seed": "tsx src/demo/seed.ts",
-    "bundle": "node scripts/bundle.mjs"
+    "bundle": "node scripts/bundle.mjs",
+    "test:contract-join": "tsx --test test/contract-join.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",

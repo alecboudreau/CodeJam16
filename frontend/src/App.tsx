@@ -435,11 +435,10 @@ function AppShell() {
         <div className="rail-steward">
           <Enforcer decorative />
           <p>
-            Keep your word.
+            Make the plan.
             <br />
-            <strong>Move the work.</strong>
+            <strong>Keep the promise.</strong>
           </p>
-          <span>Checkpoints, not comparisons.</span>
         </div>
         <div className="rail-footer">
           <Icon name="shield" />
@@ -621,10 +620,6 @@ function AppShell() {
             )}
           </PageErrorBoundary>
         </main>
-        <footer className="workspace-footer">
-          <span>Make the plan. Keep the promise.</span>
-          <span>Enforcer</span>
-        </footer>
       </div>
     </div>
   );

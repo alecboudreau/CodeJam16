@@ -42,9 +42,12 @@ export default function Groups() {
     setOpeningId(id);
     setJoinError("");
     try {
-      const next = await api.getProject(id);
+      const group = groups.find((item) => item.id === id);
+      const next = group?.contractJoinPending && group.githubUsername
+        ? await api.joinGroup({ code: group.inviteCode, githubUsername: group.githubUsername })
+        : await api.getProject(id);
       setProject(next);
-      navigate("/dashboard");
+      navigate(group?.contractJoinPending ? "/taskmap" : "/dashboard");
     } catch (reason: unknown) {
       setJoinError(reason instanceof Error ? reason.message : "Could not open that group.");
       setOpeningId("");
@@ -59,7 +62,7 @@ export default function Groups() {
     try {
       const next = await api.joinGroup({ code: code.trim(), githubUsername: githubUsername.trim() });
       setProject(next);
-      navigate("/dashboard");
+      navigate("/taskmap");
     } catch (reason: unknown) {
       setJoinError(reason instanceof Error ? reason.message : "Could not join that group.");
       setJoining(false);
@@ -101,6 +104,7 @@ export default function Groups() {
             {joining ? "Joining…" : "Join"}
           </button>
         </form>
+        <p className="mt-3 text-sm text-gray-600">By joining, you agree to this team’s current contract. Proposed changes still need your approval.</p>
         {joinError && <p role="alert" className="mt-3 text-sm text-red-800">{joinError}</p>}
       </section>
       )}
@@ -119,11 +123,12 @@ export default function Groups() {
                     {current && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">Current</span>}
                   </div>
                   <p className="mt-1 text-sm text-gray-600">{group.planActive ? "Plan active" : "Plan not active yet"} · Deadline {formatDeadline(group.deadline)}</p>
+                  {group.contractJoinPending && <p className="mt-2 text-sm text-gray-600">By joining, you agree to this team’s current contract.</p>}
                   {group.memberName && <p className="mt-1 text-sm text-gray-600">You are {group.memberName} in this group.</p>}
                   {group.inviteCode && <p className="mt-2 text-sm text-gray-700">Invite code <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-sm">{group.inviteCode}</code></p>}
                 </div>
                 <button type="button" disabled={!!openingId || joining} onClick={() => { void openGroup(group.id); }} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
-                  {openingId === group.id ? "Opening…" : "Open"}
+                  {openingId === group.id ? "Opening…" : group.contractJoinPending ? "Join group" : "Open"}
                 </button>
                 {!demo && <AddTeammate group={group} />}
               </li>

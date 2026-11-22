@@ -472,12 +472,6 @@
   color: var(--ink);
   font-weight: 650;
 }
-.rail-steward > span {
-  display: block;
-  margin-top: 10px;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
 .rail-footer {
   display: flex;
   align-items: center;
@@ -577,15 +571,6 @@
   font-size: 1.875rem;
   font-weight: 650;
   margin-top: 0;
-}
-.workspace-footer {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 38px 24px;
-  color: var(--muted);
-  font-size: 0.75rem;
 }
 .enforcer-art {
   object-fit: contain;
@@ -1658,9 +1643,6 @@
   .workspace-main {
     padding: 25px 20px;
   }
-  .workspace-footer {
-    padding: 12px 20px 28px;
-  }
   .page-stack {
     gap: 24px;
   }
@@ -1936,9 +1918,6 @@
   .workspace-main {
     order: 2;
     width: 100%;
-  }
-  .workspace-footer {
-    order: 3;
   }
 }
 .plan-task-summary {

@@ -19,6 +19,9 @@ export interface Member {
   capacityHoursPerWeek?: number;
   status: MemberStatus;         // latest button press
   blockedById?: string;         // Member.id, when status = "blocked"
+  contractJoinPending?: boolean; // invited after activation; accepts the live contract on joining
+  contractAcceptedAt?: string;
+  contractAcceptedVersion?: number;
   statusAt?: string;            // ISO; "on_it" expires after NUDGE_COOLDOWN_DAYS
 }
 

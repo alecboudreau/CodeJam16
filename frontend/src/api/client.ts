@@ -49,6 +49,8 @@ export interface GroupSummary {
   deadline: string;
   memberName: string;
   inviteCode: string;
+  githubUsername?: string;
+  contractJoinPending?: boolean;
 }
 
 function readInbox(value: unknown): InboxData {

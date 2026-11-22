@@ -198,7 +198,8 @@ export default function Setup() {
         </div>
       </header>
 
-      <div className="setup-layout">
+      {busy && <PlanProgress step={step} />}
+      <div className="setup-layout" hidden={busy}>
         <form onSubmit={submit} aria-busy={busy} className="setup-form">
           <fieldset
             disabled={busy || !!created}
@@ -513,5 +514,71 @@ export default function Setup() {
         )}
       </section>
     </div>
+  );
+}
+
+const planSteps = [
+  {
+    key: "create",
+    title: "Saving your group",
+    detail: "Storing the team, repositories and deadline, and creating the group's invite code.",
+  },
+  {
+    key: "upload",
+    title: "Reading your requirements",
+    detail: "Pulling the text out of your specification so the AI can work from it.",
+  },
+  {
+    key: "generate",
+    title: "Drafting the plan",
+    detail:
+      "The AI breaks the requirements into tasks, sizes each one, shares the work out based on everyone's weekly hours, and sets checkpoints that lead up to your deadline. This is the slow part: it can take up to a minute for a long spec.",
+  },
+] as const;
+
+/** Shown in place of the form while the group is saved and the plan is drafted. */
+function PlanProgress({ step }: { step: "idle" | "create" | "upload" | "generate" }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const active = planSteps.findIndex((s) => s.key === step);
+  const current = planSteps[active];
+  const elapsed = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+  return (
+    <section className="plan-progress" aria-labelledby="plan-progress-title">
+      <Enforcer size="large" />
+      <div className="plan-progress-copy">
+        <h2 id="plan-progress-title">Building your plan</h2>
+        <p className="plan-progress-lead">
+          Keep this page open. You'll go to the task map as soon as the draft is ready.
+        </p>
+        <ol className="plan-steps">
+          {planSteps.map((s, i) => {
+            const state = i < active ? "done" : i === active ? "active" : "waiting";
+            return (
+              <li key={s.key} className={`plan-step plan-step--${state}`} aria-current={state === "active" ? "step" : undefined}>
+                <span className="plan-step-marker" aria-hidden="true">
+                  {state === "done" ? <Icon name="check" /> : i + 1}
+                </span>
+                <div>
+                  <p className="plan-step-title">
+                    {s.title}
+                    <span className="sr-only">{state === "done" ? " (done)" : state === "active" ? " (in progress)" : " (waiting)"}</span>
+                  </p>
+                  {state === "active" && <p className="plan-step-detail">{s.detail}</p>}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+        <p role="status" aria-live="polite" className="sr-only">{current ? `${current.title}…` : ""}</p>
+        <p className="plan-progress-foot">
+          <span>{elapsed}</span> Nothing is final yet: everyone reviews and approves their own tasks before the plan goes live.
+        </p>
+      </div>
+    </section>
   );
 }

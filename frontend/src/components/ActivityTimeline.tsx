@@ -74,7 +74,7 @@ export default function ActivityTimeline({
         <polyline
           points={points.map((p) => `${p.x},${p.y}`).join(" ")}
           fill="none"
-          stroke="var(--pine)"
+          stroke="var(--umber)"
           strokeWidth="3"
           strokeLinejoin="round"
         />
@@ -84,7 +84,7 @@ export default function ActivityTimeline({
             cx={point.x}
             cy={point.y}
             r="3.5"
-            fill="var(--pine)"
+            fill="var(--umber)"
           >
             <title>
               {dateLabel(point.date)}:{" "}

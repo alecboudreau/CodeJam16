@@ -41,6 +41,7 @@ import {
 import PageErrorBoundary from "./components/PageErrorBoundary";
 import Inbox, { useInbox } from "./pages/Inbox";
 import Groups from "./pages/Groups";
+import GroupSwitcher from "./components/GroupSwitcher";
 import MyWork from "./pages/MyWork";
 import ProjectInfo from "./pages/ProjectInfo";
 import Icon, { type IconName } from "./components/Icon";
@@ -383,19 +384,7 @@ function AppShell() {
             Enforcer
           </span>
         </Link>
-        <div className="rail-project">
-          <span className="project-monogram">
-            {(project?.name ?? "New project").slice(0, 1)}
-          </span>
-          <div>
-            <strong>{project?.name ?? "Your workspace"}</strong>
-            <span>
-              {project
-                ? `${project.members.length} teammates · ${project.planActive ? "Active" : "In review"}`
-                : "Start with a shared plan"}
-            </span>
-          </div>
-        </div>
+        <GroupSwitcher />
         <nav
           ref={navRef}
           id="workspace-navigation"

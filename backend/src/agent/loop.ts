@@ -30,6 +30,8 @@ export interface CheckinOptions {
   skipGitHub?: boolean;
   /** Overrides discord/notify.ts (tests). */
   notify?: Notify;
+  /** false = don't send Discord messages (the public demo without the presenter key, #76). */
+  discord?: boolean;
 }
 
 export class CheckinError extends Error {
@@ -164,7 +166,7 @@ async function runSteps(
 
     // 5. Act: the small model words each message, discord/notify.ts sends it.
     current = "act";
-    const acted = await act({ projectId, checkinId, decisions, now, notify: opts.notify });
+    const acted = await act({ projectId, checkinId, decisions, now, notify: opts.notify, discord: opts.discord });
     const total = acted.sent.length + acted.notSent.length;
     await trace.step(
       "act",

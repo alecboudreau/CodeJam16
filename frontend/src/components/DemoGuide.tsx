@@ -40,46 +40,21 @@ interface Step {
 }
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+// One or two short lines per day: the whole guide should take about 3 minutes.
 const DAY_STORY: string[][] = [
-  [
-    "It's Sunday. Nobody pushed any code.",
-    "Nothing is due soon, so the app doesn't even ask the AI. That costs nothing.",
-  ],
-  [
-    "Monday. Alex built the payment charging. Priya laid out the checkout form.",
-    "Jordan pushed 3 commits, but they only fix spacing and quotes.",
-    "The app ignores Jordan's spacing fixes without using AI. A small AI reads the other 2 and marks Alex's and Priya's first goals as done.",
-  ],
-  [
-    "Tuesday. Jordan's goal was due today: \"the settings page saves preferences\".",
-    "Jordan pushed 4 more commits. All of them are formatting. The feature still isn't built.",
-    "Meanwhile Alex added payment checks, and that already reaches his next goal.",
-    "So the app sends Jordan a private message. The rest of the team hears nothing. Jordan has 48 hours to catch up.",
-  ],
-  [
-    "Wednesday. Priya made the checkout form check and submit cards (Alex helped), so her next goal is done. Alex built refunds.",
-    "Jordan pushed more formatting. Everyone else is on track, so the app stays quiet.",
-  ],
-  [
-    "Thursday. Jordan's 48 hours are up and the settings page still doesn't save.",
-    "Now the team gets one message. It only says which goal is late and asks if anyone can help. No numbers, no blame.",
-  ],
-  [
-    "Friday. Alex added tests. Jordan did more formatting. Nothing new to report.",
-  ],
-  [
-    "Saturday. Sam's goal was due: \"the dashboard shows the payment list\". Sam hasn't pushed anything.",
-    "So Sam gets a private message. Again, the team isn't told yet.",
-  ],
+  ["Sunday. No code, nothing due, so the app doesn't even call the AI. Free."],
+  ["Monday. Alex and Priya each hit their first goal. Jordan only fixed spacing, and the app throws that out without any AI."],
+  ["Tuesday. Jordan's goal is late. Jordan gets a private message. The team hears nothing: he has 48 hours to catch up."],
+  ["Wednesday. Priya and Alex keep going. Quiet day."],
+  ["Thursday. Jordan's 48 hours are up. The team gets one message: which goal is late, and can anyone help. No numbers, no blame."],
+  ["Friday. Quiet."],
+  ["Saturday. Sam's goal is late, so Sam gets a private message."],
 ];
 
 const STEPS: Step[] = [
   {
     title: "Get ready",
-    story: [
-      "Do this before you start talking.",
-      "It puts the demo back to the start: Saturday Nov 7, before any work.",
-    ],
+    story: ["Do this before you start talking. It resets the demo to the start of the week."],
     action: "Start over",
     does: "Resets the demo and reloads the page.",
     run: async () => {
@@ -94,53 +69,30 @@ const STEPS: Step[] = [
   {
     title: "Meet the team",
     story: [
-      "Four students: Alex, Priya, Jordan and Sam. They're building a payments app.",
-      "At the start they all signed a contract: who builds what, and by when.",
-      "Now the app watches their code and checks it against that contract.",
+      "Four students are building a payments app. They signed a contract: who builds what, by when.",
+      "The app checks their code against it. Let's play their week.",
     ],
     action: "Show the contract",
-    does: "Opens the team contract, seen as Alex.",
+    does: "Opens the team contract.",
     run: (ctx) => ctx.go("/taskmap", "Alex"),
   },
   ...DAY_NAMES.map((day, index): Step => ({
     title: day,
     story: DAY_STORY[index],
     action: `Next day: ${day}`,
-    does: `Plays ${day} and shows what the app did that day.`,
+    does: `Plays ${day} (a few seconds) and shows what the app did.`,
     run: async (ctx) => ctx.playDay(index),
   })),
   {
-    title: "Sam's message",
-    story: [
-      "This is what Sam sees: a private reminder about the dashboard.",
-      "Sam can answer with one tap: On it, Blocked, or Need help.",
-    ],
-    action: "Open Sam's messages",
-    does: "Switches to Sam and opens Sam's Inbox.",
-    run: (ctx) => ctx.go("/inbox", "Sam"),
-  },
-  {
     title: "Sam is stuck",
     story: [
-      "Sam can't build the dashboard yet. Sam needs Alex's payment history first.",
-      "So Sam presses Blocked and picks Alex.",
+      "Sam can't start: Sam is waiting on Alex's work. So Sam presses Blocked and picks Alex.",
+      "Sam's clock pauses, and Alex gets the reminder instead.",
     ],
     action: "Sam presses Blocked",
-    does: "Sam presses Blocked and picks Alex.",
+    does: "Sam presses Blocked → Alex, then the app checks again.",
     run: async (ctx) => {
       await api.setMemberStatus(ctx.projectId, { status: "blocked", blockedById: ctx.member("Alex") }, ctx.member("Sam"));
-      ctx.go("/inbox", "Sam");
-    },
-  },
-  {
-    title: "The app adjusts",
-    story: [
-      "The next time the app checks in, it sees Sam is waiting on Alex.",
-      "Sam's clock pauses, so Sam isn't blamed. Alex gets the reminder instead: \"Sam is waiting on you.\"",
-    ],
-    action: "Check again",
-    does: "Runs one check-in now and shows what the app decided.",
-    run: async (ctx) => {
       const { checkinId } = await api.runCheckin(ctx.projectId);
       ctx.go(`/trace?checkinId=${encodeURIComponent(checkinId)}`, "Alex");
     },
@@ -148,23 +100,11 @@ const STEPS: Step[] = [
   {
     title: "Jordan's page",
     story: [
-      "This is Jordan's own page. Only Jordan can see which commits counted and why.",
-      "The settings goal is marked late, and the team was told.",
-      "Some of Jordan's commits came from an unknown account (his laptop), so they weren't linked to him.",
+      "Only Jordan sees this page. Jordan linked his laptop commits too: lots of commits, but all formatting.",
+      "So the goal is still not done. Commit counts don't fool it.",
     ],
-    action: "Open Jordan's page",
-    does: "Switches to Jordan and opens his dashboard.",
-    run: (ctx) => ctx.go("/dashboard", "Jordan"),
-  },
-  {
-    title: "Jordan claims his laptop commits",
-    story: [
-      "Jordan says: those laptop commits are mine.",
-      "Now more commits count for him, but the goal is still not done. They were all formatting.",
-      "Lots of commits don't fool the app. Only real progress counts.",
-    ],
-    action: "Link the laptop commits",
-    does: "Links the unknown laptop account to Jordan.",
+    action: "Show Jordan's page",
+    does: "Switches to Jordan, links his laptop commits, opens his page.",
     run: async (ctx) => {
       const jordan = ctx.member("Jordan");
       const dash = await api.getDashboard(ctx.projectId, jordan);
@@ -174,47 +114,34 @@ const STEPS: Step[] = [
     },
   },
   {
-    title: "Jordan says it's done",
+    title: "Jordan disputes",
     story: [
-      "Sunday morning, Jordan finally wrote the code that saves the settings.",
-      "He doesn't want to wait for the next check-in, so he disputes: \"it's done, look in the settings folder.\"",
-      "The bigger AI reads his actual code and agrees. The goal flips from late to done.",
+      "Sunday morning Jordan wrote the real code. He disputes: \"it's done, check the settings folder.\"",
+      "The bigger AI reads his code and agrees. Late becomes done.",
     ],
     action: "Jordan disputes",
-    does: "Sends Jordan's dispute. The AI rechecks his code (takes a few seconds).",
+    does: "Sends the dispute. The AI rechecks his code (a few seconds).",
     run: async (ctx) => {
       const plan = await api.getTaskMap(ctx.projectId);
       const settings = plan.checkpoints.find((c) => /settings page saves/i.test(c.criteria));
-      if (!settings) throw new Error("The settings goal isn't in this plan. Press Back until Get ready and start over.");
+      if (!settings) throw new Error("The settings goal isn't in this plan. Go back to Get ready and start over.");
       await api.disputeCheckpoint(ctx.projectId, settings.id, { note: "The settings page saves preferences now; it's in frontend/settings/.", filePaths: ["frontend/settings/"] }, ctx.member("Jordan"));
       ctx.go("/trace", "Jordan");
     },
   },
   {
-    title: "How much it cost",
+    title: "The cost",
     story: [
-      "The whole week had 31 commits. 22 were thrown out by simple rules, with no AI at all.",
-      "When nothing was due, the app didn't call the AI.",
-      "Total: about 0.2 cents. Sending every commit to the big AI would cost about 7 cents.",
+      "22 of 31 commits never touched an AI. The whole week cost about 0.2 cents, versus 7 cents sending everything to the big AI.",
     ],
     action: "Show the cost",
-    does: "Shows the cost box on the Agent trace page.",
+    does: "Shows the cost box on this page.",
     run: (ctx) => ctx.go("/trace"),
-  },
-  {
-    title: "The summary",
-    story: [
-      "One button writes a short report for the team: which goals are done, waiting or late.",
-      "It never ranks people or compares them.",
-    ],
-    action: "Open the report",
-    does: "Opens the status report page. Click Generate there.",
-    run: (ctx) => ctx.go("/report"),
   },
   {
     title: "Wrap up",
     story: [
-      "The app uses AI only when it's needed, keeps your evidence private, and gets the team talking before it's too late.",
+      "It uses AI only when needed, keeps your evidence private, and gets the team talking before it's too late. One click also writes a neutral status report for the team.",
     ],
     action: "Finish",
     does: "Goes back to the team contract.",
@@ -317,7 +244,7 @@ export default function DemoGuide() {
       {current.does && !busy && <p className="demo-guide-does">The button: {current.does}</p>}
       <p className="demo-guide-hint" role="status">
         {busy && DAY_NAMES.includes(current.title)
-          ? "Playing the day: four scheduled check-ins with real AI calls. Takes 10 to 30 seconds, so keep talking."
+          ? "Playing the day: four check-ins with real AI calls. A few seconds; keep talking."
           : busy
             ? "Working…"
             : "Back and Skip only move through the steps. They don't do anything."}

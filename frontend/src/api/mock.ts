@@ -276,6 +276,10 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       state.specText = await file.text();
       return { chars: state.specText.length };
     }
+    if (method === "POST" && route === "taskmap/replan") {
+      if (!state.specText) return fail("Upload the updated spec first");
+      return { taskMap: state.plan, summary: "Sample data: the plan was not changed. With the live app, the AI compares the new spec with the work already done and proposes changes for the team to sign.", changes: [] };
+    }
     if (method === "POST" && route === "taskmap/generate") {
       if (!state.specText) return fail("Upload a specification first");
       if (state.plan.active) return fail("Plan is already active", 409);

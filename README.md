@@ -66,6 +66,8 @@ Approval is **per item**:
 
 **Changing an active plan** *(Should)*: anyone can propose an edit. It applies once the changed items are approved under the same rules. Progress already made is kept.
 
+**Updated spec:** a new version of the spec can be uploaded at any time (Project info). The big model reads it with each task's progress, checkpoint statuses and the repo's file list, and proposes an updated plan (new, changed and removed tasks, owners rebalanced only when needed, each with a reason). Tasks with progress and met checkpoints are always kept. It is saved as a proposed change, so nothing takes effect until the people affected sign.
+
 ### 2.3 The check-in (core of the project)
 
 A check-in runs observe → filter → judge → decide → act. Each step is written to a **trace** the team can watch live.
@@ -318,6 +320,7 @@ Each person owns folders, so we rarely edit the same files. Only `shared/` is co
 | POST | `/projects/:id/members/:memberId/aliases` | `{ githubLogin }` | `Member` | A |
 | POST | `/projects/:id/spec` | multipart `file` | `{ chars: number }` | C |
 | POST | `/projects/:id/taskmap/generate` | – | `TaskMap` | A |
+| POST | `/projects/:id/taskmap/replan` | – (after uploading a new spec) | `{ taskMap, summary, changes }`: the big model compares the new spec with task progress and the repo's file list and saves a proposed change the team signs | A |
 | GET | `/projects/:id/taskmap` | – | `TaskMap` | A |
 | PUT | `/projects/:id/taskmap` | `{ tasks: Task[], checkpoints: Checkpoint[], gracePeriodHours }` | `TaskMap` | A |
 | POST | `/projects/:id/taskmap/agree` | `{ memberId, items?: PlanItemRef[] }` | `TaskMap` | A |

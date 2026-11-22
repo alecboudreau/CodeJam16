@@ -39,10 +39,8 @@ specRouter.post("/projects/:id/spec", receiveFile, async (req, res, next) => {
     res.status(404).json({ error: "project not found" });
     return;
   }
-  if (state.planActive) {
-    res.status(409).json({ error: "the plan is already active; the spec can't change now" });
-    return;
-  }
+  // A new version may be uploaded at any time. On an active plan it only matters once someone runs
+  // POST /taskmap/replan, which turns it into a proposed change the team signs.
   if (!req.file) {
     res.status(400).json({ error: 'Attach the spec as a "file" field.' });
     return;

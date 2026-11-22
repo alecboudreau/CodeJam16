@@ -22,9 +22,11 @@ import {
   upsertCheckpoint,
   upsertTask,
 } from "../db/db";
-import { isDemoProject } from "../demo/mode";
+import { hasPresenterKey, isDemoProject } from "../demo/mode";
+import { listRepoFiles } from "../github/client";
 import { callBig } from "../llm/client";
 import { buildPlanPrompt, planSchemaFor } from "../llm/prompts/taskmap";
+import { buildReplanPrompt, replanSchemaFor } from "../llm/prompts/replan";
 
 export const taskmapRouter = Router();
 
@@ -286,32 +288,28 @@ function validatePlan(memberIds: Set<string>, tasks: Task[], checkpoints: Checkp
   return errors;
 }
 
-taskmapRouter.put("/projects/:id/taskmap", asyncRoute(async (req, res) => {
-  const projectId = req.params.id;
-  const body = PutTaskMapBody.parse(req.body);
-  const result = await tx(async () => {
+type PlanEdit = z.infer<typeof PutTaskMapBody>;
+type EditResult = { map: TaskMap } | { status: number; body: { error: string; issues?: string[] } };
+
+/**
+ * Saves an edited plan: a draft is written directly; on an active plan it becomes the pending change.
+ * Only changed items lose their approvals. Used by "Suggest a change" and by re-planning from a new spec.
+ */
+async function savePlanEdit(projectId: string, body: PlanEdit): Promise<EditResult> {
+  return tx(async (): Promise<EditResult> => {
     await dbGet("SELECT id FROM projects WHERE id = ? FOR UPDATE", projectId);
     const project = await getProject(projectId);
     const state = await getProjectPlanState(projectId);
-    if (!project || !state) {
-      res.status(404).json({ error: "project not found" });
-      return;
-    }
+    if (!project || !state) return { status: 404, body: { error: "project not found" } };
     const errors = validatePlan(new Set(project.members.map((m) => m.id)), body.tasks, body.checkpoints);
-    if (errors.length > 0) {
-      res.status(400).json({ error: "invalid plan", issues: errors });
-      return;
-    }
+    if (errors.length > 0) return { status: 400, body: { error: "invalid plan", issues: errors } };
 
     const oldTasks = new Map((await getTasks(projectId)).map((t) => [t.id, t]));
     const oldCheckpoints = new Map((await getCheckpoints(projectId)).map((c) => [c.id, c]));
     let foreignId = false;
     for (const task of body.tasks) if (!oldTasks.has(task.id) && await getTask(task.id)) foreignId = true;
     for (const checkpoint of body.checkpoints) if (!oldCheckpoints.has(checkpoint.id) && await getCheckpoint(checkpoint.id)) foreignId = true;
-    if (foreignId) {
-      res.status(400).json({ error: "plan item ids must belong to this project or be new" });
-      return;
-    }
+    if (foreignId) return { status: 400, body: { error: "plan item ids must belong to this project or be new" } };
     const pendingTasks = new Map(state.pendingPlan?.tasks.map((task) => [task.id, task]) ?? []);
     const pendingCheckpoints = new Map(state.pendingPlan?.checkpoints.map((checkpoint) => [checkpoint.id, checkpoint]) ?? []);
 
@@ -357,9 +355,121 @@ taskmapRouter.put("/projects/:id/taskmap", asyncRoute(async (req, res) => {
       } else await writePlan(projectId, plan);
     });
 
-    return await buildTaskMap(projectId);
+    return { map: (await buildTaskMap(projectId))! };
   });
-  if (result) res.json(result);
+}
+
+taskmapRouter.put("/projects/:id/taskmap", asyncRoute(async (req, res) => {
+  const result = await savePlanEdit(req.params.id, PutTaskMapBody.parse(req.body));
+  if ("map" in result) res.json(result.map);
+  else res.status(result.status).json(result.body);
+}));
+
+// ---------- POST /projects/:id/taskmap/replan ----------
+// After a new version of the spec is uploaded: the big model compares it with what's already done
+// (task progress, checkpoint statuses, the repo's file list) and proposes an updated plan. The result
+// is saved exactly like "Suggest a change", so it only takes effect once the people affected sign.
+
+export interface PlanChange {
+  kind: "new" | "changed" | "removed";
+  title: string;
+  reason: string;
+}
+
+taskmapRouter.post("/projects/:id/taskmap/replan", asyncRoute(async (req, res) => {
+  const projectId = req.params.id;
+  if (isDemoProject(projectId) && !hasPresenterKey(req)) {
+    res.status(403).json({ error: "Updating the demo plan from a spec needs the presenter key." });
+    return;
+  }
+  const project = await getProject(projectId);
+  const state = await getProjectPlanState(projectId);
+  if (!project || !state) {
+    res.status(404).json({ error: "project not found" });
+    return;
+  }
+  const tasks = await getTasks(projectId);
+  if (tasks.length === 0) {
+    res.status(409).json({ error: "there is no plan yet; draft the first plan instead" });
+    return;
+  }
+  const specText = state.specText?.trim() ?? "";
+  if (!specText) {
+    res.status(400).json({ error: "upload the updated spec first" });
+    return;
+  }
+  if (specText.length > MAX_SPEC_CHARS) {
+    res.status(413).json({ error: `the spec is too long (${specText.length} characters, max ${MAX_SPEC_CHARS})` });
+    return;
+  }
+  const checkpoints = await getCheckpoints(projectId);
+  const nameOf = new Map(project.members.map((m) => [m.id, m.name]));
+  const repoFiles = await Promise.all(project.repos.map(async (repo) => {
+    try {
+      return { repo, ...(await listRepoFiles(repo)) };
+    } catch {
+      return { repo, paths: [], truncated: false }; // the plan can still be updated from progress alone
+    }
+  }));
+
+  const input = {
+    specText,
+    members: project.members,
+    tasks,
+    checkpoints,
+    gracePeriodHours: state.gracePeriodHours ?? rules.DEFAULT_GRACE_PERIOD_HOURS,
+    ownerName: (id: string) => nameOf.get(id) ?? "unknown",
+    repoFiles,
+    today: new Date(),
+    deadline: deadlineOf(project.deadline),
+  };
+  const { system, user } = buildReplanPrompt(input);
+  const out = await callBig({ purpose: "taskmap", projectId, system, user, schema: replanSchemaFor(input), effort: "high" });
+
+  const memberByName = new Map(project.members.map((m) => [m.name.trim().toLowerCase(), m.id]));
+  const idByKey = new Map(out.tasks.map((t) => [t.key, t.existingId ?? newId()]));
+  const oldTasks = new Map(tasks.map((t) => [t.id, t]));
+  const nextTasks: PlanEdit["tasks"] = out.tasks.map((t) => ({
+    id: idByKey.get(t.key)!,
+    title: t.title,
+    description: t.description,
+    points: t.points,
+    ownerId: memberByName.get(t.ownerName.trim().toLowerCase())!,
+    paths: t.tracked ? t.paths : [],
+    tracked: t.tracked,
+    dependsOn: t.dependsOn.map((k) => idByKey.get(k)!),
+    completion: 0, // savePlanEdit keeps the real progress
+    approvedBy: [],
+  }));
+  const taskById = new Map(nextTasks.map((t) => [t.id, t]));
+  const nextCheckpoints: Checkpoint[] = out.checkpoints.map((c) => {
+    const task = taskById.get(idByKey.get(c.taskKey)!)!;
+    return {
+      id: c.existingId ?? newId(),
+      taskId: task.id,
+      ownerId: c.shared ? null : task.ownerId,
+      dueAt: new Date(c.dueAt).toISOString(),
+      targetCompletion: c.targetCompletion,
+      criteria: c.criteria,
+      status: "pending",
+      approvedBy: [],
+    };
+  });
+
+  const result = await savePlanEdit(projectId, { tasks: nextTasks, checkpoints: nextCheckpoints, gracePeriodHours: out.gracePeriodHours });
+  if (!("map" in result)) {
+    res.status(result.status).json(result.body);
+    return;
+  }
+
+  const changes: PlanChange[] = [];
+  out.tasks.forEach((t, i) => {
+    const old = t.existingId ? oldTasks.get(t.existingId) : undefined;
+    if (!old) changes.push({ kind: "new", title: t.title, reason: t.reason });
+    else if (taskChanged(old, nextTasks[i])) changes.push({ kind: "changed", title: t.title, reason: t.reason });
+  });
+  for (const t of tasks) if (!taskById.has(t.id)) changes.push({ kind: "removed", title: t.title, reason: "No longer in the spec, and no work had started." });
+  res.json({ taskMap: result.map, summary: out.summary, changes });
 }));
 
 // ---------- POST /projects/:id/taskmap/agree ----------

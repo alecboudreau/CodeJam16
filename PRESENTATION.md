@@ -107,7 +107,7 @@ Key design choices:
 | **0:30–1:15** The contract | "A team creates a group, uploads their assignment, and the AI drafts a plan once. Then everyone signs a contract: what each person promises, by when, and the team rules." | **Team contract**: *"Everyone has signed. The contract is live"*, 4 of 4 signatures, Alex's checkpoints in plain dates, the 48-hour grace rule. Optionally **My work** for Alex. |
 | **1:15–2:15** The agent | "Now let's fast-forward a week." | Click **Simulate 1 week** on **Agent trace**. Walk Saturday's check-in: *pulled 4 commits → filtered 3 with no AI → small model judged 1 → Sam's "Dashboard shows the payment list" missed → private DM*. Use the history picker: a **skipped** run (zero AI calls), Tuesday (*filtered 5 of 6 with no AI*), Thursday (*one team alert after the 48-hour grace*). |
 | **2:15–3:00** Private first | "Sam gets a private message, not a public callout. And it listens: Sam's actually blocked." | Discord DM (or **Inbox**). Sam taps **Blocked → Alex**. Click **Run check-in**: *Sam blocked by Alex → grace clock paused → Alex nudged*. |
-| **3:00–3:45** Evidence & disputes | "Your evidence is private. Here's Jordan's view." | Switch to **Jordan** on the **Dashboard**: 15 commits, checkpoint *alerted*. Assign the unknown `jordan@laptop.local` identity → 22 commits, still not met; the evidence shows it's mostly formatting. Jordan **disputes** pointing at `frontend/settings/` → big model re-judges → *alerted → met* in the trace. |
+| **3:00–3:45** Evidence & disputes | "Your evidence is private. Here's Jordan's view." | Switch to **Jordan** on the **Dashboard**: 15 commits, checkpoint *alerted*. Assign the unknown `jordan@laptop.local` identity → 22 commits, still not met; the evidence shows it's mostly formatting. "Jordan actually pushed the real saving code Sunday morning, before the next check-in." Jordan **disputes**, pointing at `frontend/settings/` → the big model reads the current files → *alerted → met* in the trace. |
 | **3:45–4:30** Compute | "This is the agent track, so here's what it cost." | **Compute meter**: 22 of 31 commits filtered with no AI, skipped runs, cents vs the naive baseline. Then **Status report**: met / pending / missed, no rankings. |
 | **4:30–5:00** Close | "An agent that spends compute only where it matters, keeps your evidence private, and gets the team talking before it's too late." | Back to the **Team contract** or the minotaur. |
 
@@ -119,7 +119,7 @@ Key design choices:
 
 - **Alex:** big commits, finished the payment API, but *Payment history endpoint* is still open.
 - **Priya:** frontend, all checkpoints met. Owns the untracked *Pitch slides* (never nudged). One commit is co-authored with Alex.
-- **Jordan:** 22 small formatting commits, some from an unknown git identity. Misses *Settings page saves preferences* early in the week, and the team is alerted after the grace period.
+- **Jordan:** 22 small formatting commits, some from an unknown git identity. Misses *Settings page saves preferences* early in the week, and the team is alerted after the grace period. On Sunday morning, after the simulated week, Jordan pushes the real saving code; no check-in has seen it yet, so the dispute is what flips it to met.
 - **Sam:** owns *Dashboard UI*, which depends on Alex's endpoint. Nothing committed; due at the end of the simulated week.
 - **Reset demo** puts everything back: plan live, clock at Sat Nov 7.
 

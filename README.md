@@ -651,6 +651,7 @@ DISCORD_APP_ID=                 # for registering the /link command
 DISCORD_GUILD_ID=               # the team's server
 DISCORD_GROUP_CHANNEL_ID=
 TZ=America/Toronto              # check-in crons run in this timezone
+APP_TIMEZONE=America/Toronto    # optional; wins over TZ. On Vercel TZ is ":UTC" (not a zone name), so it's ignored and the default America/Toronto is used
 FRONTEND_URL=http://localhost:5173
 VITE_API_URL=http://localhost:3001/api
 VITE_USE_MOCKS=true
@@ -705,7 +706,7 @@ VITE_USE_MOCKS=true
    - The DM pops up in Discord on screen. Sam taps **Blocked → Alex**
    - Click **Run check-in** → *Sam blocked by Alex → grace clock paused → Alex nudged ("Sam is waiting on you")*
    - Switch the member picker to **Jordan** → Jordan's private view shows **15 commits** and the checkpoint *alerted*. Assign the unknown `jordan@laptop.local` identity to Jordan → **22 commits, checkpoint not met**, and the evidence drawer shows it's almost all formatting. The team alert in Discord named the checkpoint, with no numbers
-   - Jordan disputes the checkpoint, pointing at `frontend/settings/` → the big model re-judges with the current files → `alerted → met` in the trace
+   - Jordan pushed the real saving code Sunday morning, before the next check-in, and disputes the checkpoint, pointing at `frontend/settings/` → the big model re-judges with the current files → `alerted → met` in the trace
    - Point at the **compute meter**: 22 of 31 commits filtered with no AI, skipped runs, cents vs the naive approach
    - Click **Status report** → met / pending / missed per checkpoint, no rankings
 4. **Close:** "An agent that spends compute only where it matters, keeps your evidence private, and gets the team talking before it's too late."
@@ -714,7 +715,7 @@ VITE_USE_MOCKS=true
 - 4 members, all `/link`ed, plan approved by `seed.ts`:
   - **Alex**: 6 big commits, finished the payment API, but *Payment history endpoint* is still open. Checkpoints met.
   - **Priya**: frontend, checkpoints met. Also owns the untracked *Pitch slides* (no checkpoints, never nudged). One of her commits has a `Co-authored-by: Alex` line.
-  - **Jordan**: 22 small formatting commits, some from an unmatched git identity. The *Settings page* checkpoint is due early in the week, gets missed, and gets a team alert once the grace period runs out.
+  - **Jordan**: 22 small formatting commits, some from an unmatched git identity. The *Settings page* checkpoint is due early in the week, gets missed, and gets a team alert once the grace period runs out. On Sunday Nov 15, after the simulated week, Jordan pushes the actual saving code (last entry in `commits-week2.json`); a dispute reads the current files, so it flips the checkpoint to met. The demo repo isn't on GitHub: disputes read its current files from the `after` snapshots in that file (`backend/src/demo/files.ts`).
   - **Sam**: owns *Dashboard UI*, which depends on Alex's *Payment history endpoint*. Nothing committed. The checkpoint is due at the end of the simulated week.
 - `demo/make-demo-repo.sh` uses `git commit --date` so the timeline looks like 3 real weeks.
 - `npm run demo:seed` creates project `demo-paylite` with all four members linked to the presenter's Discord account (`-- --discord <user-id>`, or whoever last ran `/link`), so every demo DM lands on one screen. Re-running it resets the demo.

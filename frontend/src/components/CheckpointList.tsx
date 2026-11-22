@@ -27,7 +27,7 @@ export default function CheckpointList({ checkpoints, projectId, viewerId, dispu
       const eligible = !!projectId && !!viewerId && (checkpoint.ownerId === null || checkpoint.ownerId === viewerId) && checkpoint.status !== "met";
       return <li key={checkpoint.id} className="py-3">
       <div className="flex items-start justify-between gap-3"><span className="text-sm font-medium">{checkpoint.criteria}</span>
-        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statuses[checkpoint.status].style}`}>{statuses[checkpoint.status].label}</span>
+        <span className={`shrink-0 status-label ${statuses[checkpoint.status].style}`}>{statuses[checkpoint.status].label}</span>
       </div>
       <p className="mt-1 text-xs leading-5 text-gray-500">Due <time dateTime={checkpoint.dueAt}>{new Date(checkpoint.dueAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time>
         {" · "}Target {Math.round(checkpoint.targetCompletion * 100)}%{checkpoint.ownerId === null ? " · Shared checkpoint" : ""}</p>

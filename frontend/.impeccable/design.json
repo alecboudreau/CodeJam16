@@ -1,0 +1,419 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-22T02:45:18.956809+00:00",
+  "title": "Design System: The Enforcer",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "surface-soft": {
+        "role": "neutral",
+        "displayName": "Surface Soft",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "rail": {
+        "role": "neutral",
+        "displayName": "Rail",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "subtle": {
+        "role": "neutral",
+        "displayName": "Subtle",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Line Strong",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "pine": {
+        "role": "primary",
+        "displayName": "Pine",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "pine-hover": {
+        "role": "primary",
+        "displayName": "Pine Hover",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "pine-soft": {
+        "role": "primary",
+        "displayName": "Pine Soft",
+        "tonalRamp": [
+          "oklch(15% 0.009 150)",
+          "oklch(27% 0.021 150)",
+          "oklch(39% 0.030 150)",
+          "oklch(51% 0.035 150)",
+          "oklch(63% 0.035 150)",
+          "oklch(75% 0.028 150)",
+          "oklch(87% 0.018 150)",
+          "oklch(95% 0.007 150)"
+        ]
+      },
+      "ochre": {
+        "role": "secondary",
+        "displayName": "Ochre",
+        "tonalRamp": [
+          "oklch(15% 0.016 75)",
+          "oklch(27% 0.039 75)",
+          "oklch(39% 0.055 75)",
+          "oklch(51% 0.065 75)",
+          "oklch(63% 0.065 75)",
+          "oklch(75% 0.052 75)",
+          "oklch(87% 0.033 75)",
+          "oklch(95% 0.013 75)"
+        ]
+      },
+      "ochre-soft": {
+        "role": "secondary",
+        "displayName": "Ochre Soft",
+        "tonalRamp": [
+          "oklch(15% 0.016 75)",
+          "oklch(27% 0.039 75)",
+          "oklch(39% 0.055 75)",
+          "oklch(51% 0.065 75)",
+          "oklch(63% 0.065 75)",
+          "oklch(75% 0.052 75)",
+          "oklch(87% 0.033 75)",
+          "oklch(95% 0.013 75)"
+        ]
+      },
+      "clay": {
+        "role": "secondary",
+        "displayName": "Clay",
+        "tonalRamp": [
+          "oklch(15% 0.016 30)",
+          "oklch(27% 0.039 30)",
+          "oklch(39% 0.055 30)",
+          "oklch(51% 0.065 30)",
+          "oklch(63% 0.065 30)",
+          "oklch(75% 0.052 30)",
+          "oklch(87% 0.033 30)",
+          "oklch(95% 0.013 30)"
+        ]
+      },
+      "clay-soft": {
+        "role": "secondary",
+        "displayName": "Clay Soft",
+        "tonalRamp": [
+          "oklch(15% 0.016 30)",
+          "oklch(27% 0.039 30)",
+          "oklch(39% 0.055 30)",
+          "oklch(51% 0.065 30)",
+          "oklch(63% 0.065 30)",
+          "oklch(75% 0.052 30)",
+          "oklch(87% 0.033 30)",
+          "oklch(95% 0.013 30)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Authentication story heading."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Workspace page headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Enforcer briefing heading."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base reading type."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons and navigation."
+      },
+      "supporting": {
+        "displayName": "Supporting",
+        "purpose": "Supporting copy and metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "field-focus",
+        "value": "0 0 0 2px #e0ebdc",
+        "purpose": "Setup field focus ring; not ambient elevation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "fast",
+        "value": "140ms",
+        "purpose": "Button and navigation state transitions."
+      },
+      {
+        "name": "work",
+        "value": "220ms",
+        "purpose": "Declared working duration; currently no observed consumer."
+      },
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Declared easing; current color transitions use CSS default ease."
+      },
+      {
+        "name": "loading",
+        "value": "1.6s ease-in-out infinite alternate",
+        "purpose": "Loading-line opacity, disabled by reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow-phone-max",
+        "value": "390px"
+      },
+      {
+        "name": "phone-max",
+        "value": "767px"
+      },
+      {
+        "name": "compact-max",
+        "value": "959px"
+      },
+      {
+        "name": "desktop-compact-max",
+        "value": "1199px"
+      },
+      {
+        "name": "wide-min",
+        "value": "1600px"
+      },
+      {
+        "name": "short-desktop-height-max",
+        "value": "700px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Compact primary action.",
+      "html": "<button class=\"ds-btn-primary\">Save changes</button>",
+      "css": ".ds-btn-primary{font-family:var(--font-sans,\"Public Sans\",sans-serif);font-size:.8125rem;font-weight:600;line-height:1.4;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:9px 14px;border:1px solid transparent;border-radius:var(--radius-control);text-decoration:none;transition:background var(--motion-fast),border-color var(--motion-fast),color var(--motion-fast);background:var(--pine);color:white;}.ds-btn-primary:hover:not(:disabled){background:var(--pine-hover);}.ds-btn-primary:focus-visible{outline:3px solid var(--pine);outline-offset:3px;}.ds-btn-primary:active:not(:disabled){filter:brightness(.96);}.ds-btn-primary:disabled{opacity:.5;cursor:not-allowed;}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Compact secondary action.",
+      "html": "<button class=\"ds-btn-secondary\">Save changes</button>",
+      "css": ".ds-btn-secondary{font-family:var(--font-sans,\"Public Sans\",sans-serif);font-size:.8125rem;font-weight:600;line-height:1.4;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:9px 14px;border:1px solid transparent;border-radius:var(--radius-control);text-decoration:none;transition:background var(--motion-fast),border-color var(--motion-fast),color var(--motion-fast);background:var(--surface);color:var(--ink);border-color:var(--line-strong);}.ds-btn-secondary:hover:not(:disabled){background:var(--surface-soft);}.ds-btn-secondary:focus-visible{outline:3px solid var(--pine);outline-offset:3px;}.ds-btn-secondary:active:not(:disabled){filter:brightness(.96);}.ds-btn-secondary:disabled{opacity:.5;cursor:not-allowed;}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Compact quiet action.",
+      "html": "<button class=\"ds-btn-quiet\">Save changes</button>",
+      "css": ".ds-btn-quiet{font-family:var(--font-sans,\"Public Sans\",sans-serif);font-size:.8125rem;font-weight:600;line-height:1.4;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:9px 14px;border:1px solid transparent;border-radius:var(--radius-control);text-decoration:none;transition:background var(--motion-fast),border-color var(--motion-fast),color var(--motion-fast);background:transparent;color:var(--muted);}.ds-btn-quiet:hover:not(:disabled){background:var(--surface-soft);}.ds-btn-quiet:focus-visible{outline:3px solid var(--pine);outline-offset:3px;}.ds-btn-quiet:active:not(:disabled){filter:brightness(.96);}.ds-btn-quiet:disabled{opacity:.5;cursor:not-allowed;}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Visible label and outlined working field.",
+      "html": "<label class=\"ds-field-label\">Project name<input class=\"ds-field\" value=\"PayLite\" /></label>",
+      "css": ".ds-field-label{display:block;font-family:var(--font-sans,\"Public Sans\",sans-serif);font-size:.875rem;color:var(--ink);font-weight:500;}.ds-field{display:block;width:100%;max-width:320px;margin-top:4px;min-height:44px;padding:8px 12px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;outline:none;}.ds-field:focus-visible{border-color:#4c7759;box-shadow:0 0 0 2px #e0ebdc;}.ds-field:disabled{background:var(--canvas);color:var(--subtle);}"
+    },
+    {
+      "name": "Rail Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Active pine route and pale hover route. On mobile, the in-flow disclosure focuses its first link on open; Escape closes it and returns focus to the toggle; route changes focus the main content. The desktop rail scrolls when needed.",
+      "html": "<nav aria-label=\"Workspace\" class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-active\" href=\"#dashboard\" aria-current=\"page\">Dashboard</a><a class=\"ds-nav-item\" href=\"#tasks\">Task map</a></nav>",
+      "css": ".ds-nav{background:var(--rail);padding:12px;display:grid;gap:5px;max-width:220px;font-family:var(--font-sans,\"Public Sans\",sans-serif);}.ds-nav-item{display:flex;align-items:center;min-height:44px;padding:11px 13px;border-radius:7px;font-size:.8125rem;font-weight:500;color:#53634f;text-decoration:none;transition:background var(--motion-fast),color var(--motion-fast);}.ds-nav-item:hover{background:#dfe7da;color:var(--ink);}.ds-nav-active,.ds-nav-active:hover{background:var(--pine);color:white;font-weight:600;}.ds-nav-item:focus-visible{outline:3px solid var(--pine);outline-offset:3px;}"
+    },
+    {
+      "name": "Attention Status",
+      "kind": "chip",
+      "refersTo": "status",
+      "description": "Explicit text on a restrained attention tone.",
+      "html": "<span class=\"ds-status\">Needs attention</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:4px;font-family:var(--font-sans,\"Public Sans\",sans-serif);font-size:.75rem;font-weight:550;line-height:1.5;background:#f5f1e7;color:var(--ochre);}"
+    },
+    {
+      "name": "Working Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Flat white work region with a fine border.",
+      "html": "<section class=\"ds-panel\"><h2 class=\"ds-panel-title\">Project progress</h2><p class=\"ds-panel-copy\">Progress reflects agreed checkpoints.</p></section>",
+      "css": ".ds-panel{padding:23px;border:1px solid var(--line);border-radius:var(--radius-panel);background:var(--surface);font-family:var(--font-sans,\"Public Sans\",sans-serif);color:var(--ink);}.ds-panel-title{margin:0 0 22px;font-size:.9375rem;font-weight:650;line-height:1.25;letter-spacing:-.02em;}.ds-panel-copy{margin:0;font-size:.75rem;line-height:1.65;color:var(--muted);}"
+    },
+    {
+      "name": "Task Progress",
+      "kind": "custom",
+      "description": "Numeric progress paired with a slim factual bar.",
+      "html": "<div class=\"ds-progress\"><div class=\"ds-progress-label\"><span>Checkpoint completion</span><strong>60%</strong></div><div class=\"ds-progress-track\" role=\"progressbar\" aria-label=\"Checkpoint completion\" aria-valuenow=\"60\" aria-valuemin=\"0\" aria-valuemax=\"100\"><div class=\"ds-progress-value\"></div></div></div>",
+      "css": ".ds-progress{font-family:var(--font-sans,\"Public Sans\",sans-serif);}.ds-progress-label{display:flex;justify-content:space-between;gap:12px;font-size:.75rem;color:var(--muted);margin-bottom:9px;}.ds-progress-label strong{color:var(--pine);font-weight:650;font-variant-numeric:tabular-nums;}.ds-progress-track{height:6px;background:var(--surface-soft);overflow:hidden;border-radius:2px;}.ds-progress-value{height:100%;width:60%;background:var(--pine);border-radius:2px;}"
+    },
+    {
+      "name": "Read-only Plan Summary",
+      "kind": "custom",
+      "description": "Active Task map facts and wrapping checkpoint criteria, preserving reading access without disabled fields.",
+      "html": "<section class=\"ds-plan\"><dl class=\"ds-plan-facts\"><div><dt>Owner</dt><dd>Alex</dd></div><div><dt>Effort</dt><dd>3 points</dd></div><div class=\"ds-plan-description\"><dt>Description</dt><dd>Review the payment confirmation flow.</dd></div></dl><section class=\"ds-plan-checkpoint\"><h4>Payment confirmations display the agreed receipt details and handle a missing response.</h4><dl><div><dt>Target</dt><dd>100%</dd></div><div><dt>Agreement</dt><dd>Shared checkpoint</dd></div></dl></section></section>",
+      "css": ".ds-plan{font-family:var(--font-sans,\"Public Sans\",sans-serif);color:var(--ink);}.ds-plan-facts{display:grid;grid-template-columns:1fr 1fr;gap:18px 24px;margin:0;}.ds-plan-facts dt,.ds-plan-checkpoint dt{font-size:.75rem;color:var(--muted);margin-bottom:5px;}.ds-plan-facts dd{margin:0;font-size:.875rem;line-height:1.7;overflow-wrap:anywhere;}.ds-plan-description{grid-column:1/-1;}.ds-plan-checkpoint{margin-top:16px;padding:18px 0;border-block:1px solid var(--line);}.ds-plan-checkpoint h4{margin:0;font-size:.9375rem;font-weight:600;line-height:1.6;overflow-wrap:anywhere;}.ds-plan-checkpoint dl{display:flex;flex-wrap:wrap;gap:16px 28px;margin:16px 0 0;}.ds-plan-checkpoint dd{margin:0;font-size:.8125rem;line-height:1.7;}@media(max-width:767px){.ds-plan-facts{gap:18px 20px;}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Composed Project Steward",
+    "overview": "A composed project steward keeps commitments visible. Pale mineral surroundings and white working surfaces make a practical, information-rich workspace feel calm. Pine actions and restrained outlines provide clear hierarchy without theatrical effects.\n\nThe Enforcer supplies the warmth: a watchful charcoal rook in a green chore jacket, with an ochre beak and clipboard. His appearances accompany guidance, onboarding, feedback and progress rather than becoming decoration on every control. Public Sans keeps the interface precise and approachable.",
+    "keyCharacteristics": [
+      "Calm mineral surfaces and pine actions.",
+      "Compact, readable working density.",
+      "Restrained corners and outlined SVG icons.",
+      "A firm, friendly character used at meaningful moments."
+    ],
+    "rules": [
+      {
+        "name": "The Pine Action Rule",
+        "body": "Use pine for primary actions, the active navigation item and progress; reserve ochre and clay for attention and errors.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Surface Rule",
+        "body": "Separate working regions through pale tone, whitespace and fine borders; do not add decorative elevation.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep actions legible against pale working surfaces.",
+      "Do use the supplied Enforcer artwork with its natural proportions.",
+      "Do preserve text labels, keyboard focus, reduced motion and the mobile reading order.",
+      "Do pair status color with explicit status text."
+    ],
+    "donts": [
+      "Don't substitute emoji or font glyphs for the outlined SVG icon system.",
+      "Don't enlarge the mascot until it competes with the task or evidence being reviewed.",
+      "Don't introduce glossy effects or decorative shadows into the flat working surfaces."
+    ]
+  }
+}

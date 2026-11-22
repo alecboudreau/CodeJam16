@@ -1,13 +1,13 @@
 {
   "id": "/",
-  "name": "Group Project Enforcer",
+  "name": "The Enforcer",
   "short_name": "Enforcer",
   "description": "Plan team projects and follow shared progress.",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f9fafb",
-  "theme_color": "#1d4ed8",
+  "background_color": "#f3f4f0",
+  "theme_color": "#315b48",
   "icons": [
     {
       "src": "/icons/icon-192.png",

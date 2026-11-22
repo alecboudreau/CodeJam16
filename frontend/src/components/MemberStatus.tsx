@@ -5,5 +5,5 @@ export default function MemberStatus({ member, members }: { member: Member; memb
   const blocker = members.find((m) => m.id === member.blockedById);
   const label = member.status === "on_it" ? "On it" : member.status === "need_help" ? "Needs help" : `Blocked by ${blocker?.name ?? "a teammate"}`;
   const style = member.status === "blocked" ? "bg-amber-50 text-amber-900" : member.status === "need_help" ? "bg-purple-50 text-purple-800" : "bg-blue-50 text-blue-800";
-  return <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${style}`}>{label}</span>;
+  return <span className={`status-label ${style}`}>{label}</span>;
 }

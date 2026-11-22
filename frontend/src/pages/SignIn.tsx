@@ -52,12 +52,12 @@ export default function SignIn() {
         <div className="auth-story-content">
           <Enforcer size="large" />
           <h2>
-            Good intentions. Better{" "}
-            <span className="whitespace-nowrap">follow-through.</span>
+            Make the promise. Back it up.
           </h2>
           <p>
-            A shared plan, clear checkpoints, and a watchful friend who keeps
-            the work moving. Firm, fair, and always on your team.
+            Set the plan. Own your part. Finish what you started. Enforcer
+            keeps commitments clear and your team moving—even when the work
+            gets hard.
           </p>
         </div>
       </aside>

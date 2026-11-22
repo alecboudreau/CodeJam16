@@ -2136,6 +2136,7 @@ main dd {
   background: var(--surface);
 }
 .plan-task > summary {
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -2156,7 +2157,8 @@ main dd {
   flex-direction: column;
   gap: 3px;
 }
-.plan-task-title h2 {
+.plan-task-title h2,
+.plan-task-title h3 {
   font-size: 0.9375rem;
   font-weight: 650;
 }

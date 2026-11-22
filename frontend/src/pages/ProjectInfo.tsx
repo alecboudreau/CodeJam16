@@ -5,6 +5,7 @@ import { useProject } from "../App";
 import { EmptyState } from "../components/Enforcer";
 import { ErrorState, LoadingState } from "../components/PageFeedback";
 import { isDemoMode } from "../demo";
+import Icon from "../components/Icon";
 
 const points = [1, 2, 3, 5, 8, 13] as const;
 // Same field styles as Setup, Groups and the team contract editor.
@@ -135,35 +136,6 @@ export default function ProjectInfo() {
         {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
         {notice && <p role="status" className="contract-notice">{notice}</p>}
 
-        <form className="panel" onSubmit={saveDeadline}>
-          <h2>Deadline</h2>
-          <div className="flex flex-wrap items-end gap-3">
-            <label className={`${labelClass} w-full max-w-xs`}>Project deadline
-              <input required type="datetime-local" className={inputClass} value={deadline} onChange={(event) => setDeadline(event.target.value)} />
-            </label>
-            <button type="submit" className="btn btn-primary">Save deadline</button>
-          </div>
-        </form>
-
-        <section className="panel">
-          <h2>Checkpoint dates</h2>
-          {plan.checkpoints.length === 0 ? <p className="text-sm text-gray-600">This project has no checkpoints yet.</p> : (
-            <ul className="divide-y divide-gray-200">
-              {plan.checkpoints.map((checkpoint) => <CheckpointDate key={checkpoint.id} checkpoint={checkpoint} taskTitle={taskTitle(checkpoint.taskId)} onSave={saveCheckpoint} />)}
-            </ul>
-          )}
-        </section>
-
-        <section className="space-y-4" aria-labelledby="tasks-heading">
-          <h2 id="tasks-heading" className="text-lg font-semibold">Tasks</h2>
-          {plan.tasks.map((task) => <TaskEditor key={`${task.id}:${task.title}:${task.ownerId}`} task={task} members={project.members} onSave={saveTask} />)}
-          <form className="panel" onSubmit={addTask}>
-            <h2>Add a task</h2>
-            <TaskFields value={draft} members={project.members} onChange={setDraft} />
-            <button type="submit" className="btn btn-primary mt-5">Add task</button>
-          </form>
-        </section>
-
         <form className="panel" onSubmit={addMember}>
           <h2>Team</h2>
           <ul className="divide-y divide-gray-200 border-y border-gray-200">
@@ -186,6 +158,45 @@ export default function ProjectInfo() {
           <button type="submit" className="btn btn-secondary mt-4">Add teammate</button>
           </>)}
         </form>
+
+        <form className="panel" onSubmit={saveDeadline}>
+          <h2>Deadline</h2>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className={`${labelClass} w-full max-w-xs`}>Project deadline
+              <input required type="datetime-local" className={inputClass} value={deadline} onChange={(event) => setDeadline(event.target.value)} />
+            </label>
+            <button type="submit" className="btn btn-primary">Save deadline</button>
+          </div>
+        </form>
+
+        <section className="panel">
+          <h2>Checkpoint dates</h2>
+          {plan.checkpoints.length === 0 ? <p className="text-sm text-gray-600">This project has no checkpoints yet.</p> : (
+            <ul className="divide-y divide-gray-200">
+              {plan.checkpoints.map((checkpoint) => <CheckpointDate key={checkpoint.id} checkpoint={checkpoint} taskTitle={taskTitle(checkpoint.taskId)} onSave={saveCheckpoint} />)}
+            </ul>
+          )}
+        </section>
+
+        <section className="space-y-4" aria-labelledby="tasks-heading">
+          <h2 id="tasks-heading" className="text-lg font-semibold">Tasks</h2>
+          <div>
+            {plan.tasks.map((task) => <TaskEditor key={`${task.id}:${task.title}:${task.ownerId}`} task={task} members={project.members} onSave={saveTask} />)}
+            <details className="plan-task">
+              <summary>
+                <span className="plan-task-title">
+                  <h3>Add a task</h3>
+                  <span className="plan-task-meta">New work that wasn&apos;t in the plan</span>
+                </span>
+                <Icon name="chevron" className="plan-task-chevron" />
+              </summary>
+              <form className="plan-task-body" onSubmit={addTask}>
+                <TaskFields value={draft} members={project.members} onChange={setDraft} />
+                <button type="submit" className="btn btn-primary mt-5">Add task</button>
+              </form>
+            </details>
+          </div>
+        </section>
       </>}
     </div>
   );
@@ -211,11 +222,22 @@ function CheckpointDate({ checkpoint, taskTitle, onSave }: { checkpoint: Checkpo
 function TaskEditor({ task, members, onSave }: { task: Task; members: { id: string; name: string }[]; onSave: (task: Task, input: TaskEdit) => Promise<void> }) {
   const [value, setValue] = useState<TaskEdit>(() => editFrom(task));
   return (
-    <form className="panel" onSubmit={(event) => { event.preventDefault(); void onSave(task, value); }} aria-label={`Edit ${task.title}`}>
-      <h3 className="mb-4 text-base font-semibold">{task.title}</h3>
-      <TaskFields value={value} members={members} onChange={setValue} />
-      <button type="submit" className="btn btn-secondary mt-5">Save task</button>
-    </form>
+    <details className="plan-task">
+      <summary>
+        <span className="plan-task-title">
+          <h3>{task.title}</h3>
+          <span className="plan-task-meta">
+            {members.find((member) => member.id === task.ownerId)?.name ?? "Unassigned"} · {task.points} {task.points === 1 ? "point" : "points"}
+            {!task.tracked && " · not tracked"}
+          </span>
+        </span>
+        <Icon name="chevron" className="plan-task-chevron" />
+      </summary>
+      <form className="plan-task-body" onSubmit={(event) => { event.preventDefault(); void onSave(task, value); }} aria-label={`Edit ${task.title}`}>
+        <TaskFields value={value} members={members} onChange={setValue} />
+        <button type="submit" className="btn btn-secondary mt-5">Save task</button>
+      </form>
+    </details>
   );
 }
 

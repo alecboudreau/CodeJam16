@@ -335,6 +335,8 @@ function AppShell() {
     !projectLoading && !projectError ? (project?.id ?? "") : "",
     viewerId,
   );
+  // The groups page (and "/", which redirects to it) works without a loaded project.
+  const onGroups = location.pathname === "/groups" || location.pathname === "/";
   const [navOpen, setNavOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -520,9 +522,9 @@ function AppShell() {
           <PageErrorBoundary
             resetKey={`${location.pathname}:${project?.id ?? ""}:${viewerId}`}
           >
-            {location.pathname !== "/groups" && projectLoading ? (
+            {!onGroups && projectLoading ? (
               <LoadingState message="Loading your project…" />
-            ) : location.pathname !== "/groups" && projectError ? (
+            ) : !onGroups && projectError ? (
               <ErrorState
                 title="Could not load your project"
                 onRetry={retryProject}

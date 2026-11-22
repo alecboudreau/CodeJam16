@@ -530,38 +530,59 @@ function AppShell() {
             {!onGroups && projectLoading ? (
               <LoadingState message="Loading your project…" />
             ) : !onGroups && projectError ? (
-              <ErrorState
-                title="Could not load your project"
-                onRetry={retryProject}
-                retryLabel="Retry project"
-              >
-                <p>{projectError}</p>
-                <p>
-                  Your saved project could not be opened. Retry, or choose
-                  another starting point.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {useMocks && (
+              <section className="empty-state">
+                <Enforcer size="large" />
+                <div>
+                  <h2>No project found</h2>
+                  <div className="empty-state-detail">
+                    <p>
+                      This project may have been deleted, or you&apos;re not on
+                      its team anymore. Make a new one, or open one of your
+                      groups.
+                    </p>
+                  </div>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setProject(null);
+                        navigate("/setup");
+                      }}
+                    >
+                      Make a project
+                      <Icon name="arrow" />
+                    </button>
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      onClick={openDemo}
+                      onClick={() => {
+                        setProject(null);
+                        navigate("/groups");
+                      }}
                     >
-                      Open demo project
+                      Go to your groups
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setProject(null);
-                      navigate("/setup");
-                    }}
-                  >
-                    Start a new project
-                  </button>
+                    {useMocks && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={openDemo}
+                      >
+                        Open demo project
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={retryProject}
+                    >
+                      <Icon name="refresh" />
+                      Try again
+                    </button>
+                  </div>
                 </div>
-              </ErrorState>
+              </section>
             ) : (
               <Routes>
                 <Route path="/" element={<Navigate to="/groups" replace />} />

@@ -4,7 +4,7 @@ import type {
 } from "@enforcer/shared";
 import { mockRequest } from "./mock";
 import { accessToken } from "../auth/supabase";
-import { isDemoMode, presenterKey } from "../demo";
+import { DEMO_PROJECT_ID, isDemoMode, presenterKey } from "../demo";
 
 export const useMocks = import.meta.env.VITE_USE_MOCKS === "true";
 const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001/api").replace(/\/$/, "");
@@ -138,7 +138,12 @@ export const api = {
   resetDemo: () => request<{ projectId: string }>("POST", "/demo/reset"),
   getPresenterStatus: () => request<{ presenter: boolean }>("GET", "/demo/presenter"),
   getMe: (id: string) => request<Member>("GET", `${projectPath(id)}/me`),
-  listGroups: () => request<GroupSummary[]>("GET", "/me/projects"),
+  // Demo mode has no account, so "my groups" is just the public demo project.
+  listGroups: async (): Promise<GroupSummary[]> => {
+    if (!isDemoMode()) return request<GroupSummary[]>("GET", "/me/projects");
+    const demo = await request<Project>("GET", `/projects/${DEMO_PROJECT_ID}`);
+    return [{ id: demo.id, name: demo.name, planActive: demo.planActive, deadline: demo.deadline, memberName: "", inviteCode: "" }];
+  },
   joinGroup: (input: { code: string; githubUsername: string }) => request<Project>("POST", "/me/projects/join", input),
   createProject: (input: CreateProjectInput) => request<Project>("POST", "/projects", input),
   getProject: (id: string) => request<Project>("GET", projectPath(id)),

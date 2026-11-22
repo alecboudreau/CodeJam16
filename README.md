@@ -314,6 +314,7 @@ Each person owns folders, so we rarely edit the same files. Only `shared/` is co
 |---|---|---|---|---|
 | POST | `/projects` | `{ name, repos: string[], members: MemberInput[], deadline }` | `Project` | A |
 | GET | `/projects/:id` | – | `Project` | A |
+| POST | `/projects/:id/members` | `MemberInput` (members only; 409 if the GitHub username is taken) | `Member` | A |
 | POST | `/projects/:id/members/:memberId/aliases` | `{ githubLogin }` | `Member` | A |
 | POST | `/projects/:id/spec` | multipart `file` | `{ chars: number }` | C |
 | POST | `/projects/:id/taskmap/generate` | – | `TaskMap` | A |

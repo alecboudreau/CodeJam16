@@ -239,6 +239,19 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       else delete member.blockedById;
       return member;
     }
+    if (method === "POST" && route === "members") {
+      const input = body as { name?: string; githubUsername?: string; email?: string };
+      const name = input.name?.trim() ?? "";
+      const login = input.githubUsername?.trim().replace(/^@/, "") ?? "";
+      if (!name || !login) return fail("Enter a name and a GitHub username");
+      if (state.project.members.some((m) => m.githubUsername.toLowerCase() === login.toLowerCase())) return fail(`GitHub username "${login}" is already on this team.`, 409);
+      const member: Member = {
+        id: `member-${state.project.members.length + 1}-${Date.now()}`, name, githubUsername: login, githubAliases: [],
+        email: input.email || undefined, status: "none",
+      };
+      state.project.members.push(member);
+      return member;
+    }
     if (method === "POST" && parts[2] === "members" && parts[4] === "aliases") {
       const member = findMember(state, parts[3]);
       const { githubLogin } = body as { githubLogin: string };

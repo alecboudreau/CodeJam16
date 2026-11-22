@@ -1,9 +1,10 @@
 // /api/projects, members, aliases (owner: Person A). README §7.
 import { Router } from "express";
 import { z } from "zod";
-import { AddAliasBody, CreateProjectBody } from "@enforcer/shared";
-import { addGithubAlias, getMemberProjectId, getProject, insertProject, joinGroup, listGroups, setMemberDiscordId } from "../db/db";
+import { AddAliasBody, CreateProjectBody, MemberInputSchema } from "@enforcer/shared";
+import { addGithubAlias, getMemberProjectId, getMembers, getProject, insertMember, insertProject, joinGroup, listGroups, setMemberDiscordId } from "../db/db";
 import { authEnabled } from "../auth/auth";
+import { isDemoProject } from "../demo/mode";
 
 const JoinGroupBody = z.object({
   code: z.string().trim().min(1),
@@ -102,6 +103,32 @@ projectsRouter.get("/projects/:id", async (req, res, next) => {
     return;
   }
   res.json(project);
+});
+
+// POST /projects/:id/members { name, githubUsername, email?, capacityHoursPerWeek? } → Member
+// A current member adds a teammate who wasn't listed at setup. They then join with the invite code.
+projectsRouter.post("/projects/:id/members", async (req, res, next) => {
+  try {
+    const body = MemberInputSchema.parse({ ...req.body, githubUsername: String(req.body?.githubUsername ?? "").trim().replace(/^@/, "") });
+    if (isDemoProject(req.params.id)) {
+      res.status(403).json({ error: "The demo project's team can't be changed." });
+      return;
+    }
+    if (!(await getProject(req.params.id))) {
+      res.status(404).json({ error: "project not found" });
+      return;
+    }
+    const login = body.githubUsername.toLowerCase();
+    const taken = (await getMembers(req.params.id)).some((m) =>
+      m.githubUsername.toLowerCase() === login || m.githubAliases.some((a) => a.toLowerCase() === login));
+    if (taken) {
+      res.status(409).json({ error: `GitHub username "${body.githubUsername}" is already on this team.` });
+      return;
+    }
+    res.status(201).json(await insertMember(req.params.id, body));
+  } catch (e) {
+    next(e);
+  }
 });
 
 // POST /projects/:id/members/:memberId/aliases { githubLogin } → Member

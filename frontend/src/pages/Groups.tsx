@@ -115,11 +115,72 @@ export default function Groups() {
                 <button type="button" disabled={!!openingId || joining} onClick={() => { void openGroup(group.id); }} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
                   {openingId === group.id ? "Opening…" : "Open"}
                 </button>
+                <AddTeammate group={group} />
               </li>
             );
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** Lets a member add someone who wasn't listed at setup. The new person then joins with the invite code. */
+function AddTeammate({ group }: { group: GroupSummary }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [githubUsername, setGithubUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [added, setAdded] = useState("");
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      const member = await api.addMember(group.id, {
+        name: name.trim(),
+        githubUsername: githubUsername.trim(),
+        ...(email.trim() ? { email: email.trim() } : {}),
+      });
+      setAdded(`Added ${member.name}. Send them the invite code ${group.inviteCode} and their GitHub username (${member.githubUsername}) so they can join.`);
+      setName("");
+      setGithubUsername("");
+      setEmail("");
+      setOpen(false);
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "Could not add that teammate.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="w-full border-t border-gray-100 pt-3">
+      {added && <p role="status" className="mb-2 text-sm text-green-800">{added}</p>}
+      {!open ? (
+        <button type="button" onClick={() => { setOpen(true); setAdded(""); }} className="text-sm font-semibold text-blue-700 hover:underline">+ Add teammate</button>
+      ) : (
+        <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
+          <label className="block text-sm font-medium">Name
+            <input required value={name} onChange={(event) => setName(event.target.value)} className={inputClass} autoComplete="off" />
+          </label>
+          <label className="block text-sm font-medium">GitHub username
+            <input required value={githubUsername} onChange={(event) => setGithubUsername(event.target.value)} className={inputClass} placeholder="octocat" autoComplete="off" spellCheck={false} />
+          </label>
+          <label className="block text-sm font-medium">Email <span className="font-normal text-gray-500">(optional)</span>
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} autoComplete="off" />
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{saving ? "Adding…" : "Add"}</button>
+            <button type="button" onClick={() => { setOpen(false); setError(""); }} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50">Cancel</button>
+          </div>
+        </form>
+      )}
+      {error && <p role="alert" className="mt-2 text-sm text-red-800">{error}</p>}
     </div>
   );
 }

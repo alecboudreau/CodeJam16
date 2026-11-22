@@ -99,6 +99,10 @@ Key design choices:
 
 ## 5. The 5-minute script
 
+**Easiest way: the Demo guide.** In `/demo`, a *Demo guide* panel sits bottom-right. Each step shows what to say and has one button that switches person and page and does the action: reset, the contract, **Play Sunday … Play Saturday** (one simulated day per click; days with AI calls take 10–30 s, so keep talking), Sam's Inbox, Blocked → Alex, Run a check-in, Jordan's dashboard, assign the unknown identity, the dispute (alerted → met), the compute meter, the status report, close. Back and Skip only move the guide. **Reset demo** (banner) also restarts the guide.
+
+The table below is the same story if you'd rather drive by hand.
+
 **Before you start:** open https://codejam16.vercel.app/demo (presenter: `/demo?key=…` so Discord messages really send), click **Reset demo**, pick **Alex** in *Who are you?*, and have Discord visible.
 
 | Time | Say | Show |

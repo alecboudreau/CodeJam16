@@ -191,6 +191,6 @@ export const api = {
   disputeCheckpoint: (id: string, checkpointId: string, input: DisputeInput, memberId?: string) =>
     request<Dispute>("POST", `${projectPath(id)}/checkpoints/${encodeURIComponent(checkpointId)}/dispute`,
       { ...input, memberId: member(id, memberId) }),
-  simulate: (id: string) => request<{ checkinId: string }>("POST", `${projectPath(id)}/simulate`, { days: 7 }),
+  simulate: (id: string, days = 7) => request<{ checkinId: string }>("POST", `${projectPath(id)}/simulate`, { days }),
   githubWebhook: (payload: Record<string, unknown>) => request<void>("POST", "/webhook/github", payload),
 };

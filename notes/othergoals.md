@@ -25,3 +25,5 @@ Some notes of stuff to add etc.
 -reallocation of tasks. splitting up more if more people.
 
 -a section for a general of what YOU have to do.
+
+-NAME THE DISCORD "THE ENFORCER" and change his picture to the enforcer. make him pat his baton.

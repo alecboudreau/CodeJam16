@@ -16,11 +16,14 @@ import { simulateRouter } from "./routes/simulate";
 import { discordRouter } from "./routes/discord";
 import { cronRouter } from "./routes/cron";
 import { inboxRouter } from "./routes/inbox";
+import { webhookRouter } from "./routes/webhook";
 
 export const app = express();
 
 // On Vercel the web app and the API share one origin, so CORS only matters for local dev.
 app.use(cors({ origin: config.frontendUrl }));
+// Verify GitHub's original bytes before the general JSON parser or browser authentication.
+app.use("/api", webhookRouter);
 // Keep the raw bytes: Discord signs the exact body it sent.
 app.use(
   express.json({

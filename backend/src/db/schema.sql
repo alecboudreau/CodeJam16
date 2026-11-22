@@ -4,7 +4,9 @@
 CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, name TEXT, repos TEXT, deadline TEXT,
   spec_text TEXT, created_at TEXT, plan_active INTEGER DEFAULT 0,
   plan_version INTEGER DEFAULT 0, grace_period_hours INTEGER,
-  grace_approved_by TEXT DEFAULT '[]', pending_plan TEXT, demo_now TEXT);
+  grace_approved_by TEXT DEFAULT '[]', pending_plan TEXT, demo_now TEXT, invite_code TEXT);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS invite_code TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS projects_invite_code ON projects (invite_code);
 CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, seq BIGSERIAL, project_id TEXT, name TEXT,
   github_username TEXT, github_aliases TEXT DEFAULT '[]', discord_id TEXT, email TEXT,
   capacity_hours_per_week INTEGER, status TEXT DEFAULT 'none', blocked_by_id TEXT,

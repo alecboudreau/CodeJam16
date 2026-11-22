@@ -40,10 +40,12 @@ import {
 } from "./demo";
 import PageErrorBoundary from "./components/PageErrorBoundary";
 import Inbox, { useInbox } from "./pages/Inbox";
+import Groups from "./pages/Groups";
 import Icon, { type IconName } from "./components/Icon";
 import { EmptyState, Enforcer } from "./components/Enforcer";
 
 const links = [
+  ["/groups", "Groups", "shield"],
   ["/dashboard", "Dashboard", "dashboard"],
   ["/taskmap", "Task map", "plan"],
   ["/inbox", "Inbox", "inbox"],
@@ -333,6 +335,8 @@ function AppShell() {
     !projectLoading && !projectError ? (project?.id ?? "") : "",
     viewerId,
   );
+  // The groups page (and "/", which redirects to it) works without a loaded project.
+  const onGroups = location.pathname === "/groups" || location.pathname === "/";
   const [navOpen, setNavOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -365,9 +369,9 @@ function AppShell() {
       </a>
       <aside className={`workspace-rail ${navOpen ? "is-open" : ""}`}>
         <Link
-          to="/dashboard"
+          to="/groups"
           className="brand-lockup"
-          aria-label="The Enforcer dashboard"
+          aria-label="The Enforcer groups"
         >
           <span className="brand-symbol">
             <Icon name="check" />
@@ -518,9 +522,9 @@ function AppShell() {
           <PageErrorBoundary
             resetKey={`${location.pathname}:${project?.id ?? ""}:${viewerId}`}
           >
-            {projectLoading ? (
+            {!onGroups && projectLoading ? (
               <LoadingState message="Loading your project…" />
-            ) : projectError ? (
+            ) : !onGroups && projectError ? (
               <ErrorState
                 title="Could not load your project"
                 onRetry={retryProject}
@@ -555,7 +559,8 @@ function AppShell() {
               </ErrorState>
             ) : (
               <Routes>
-                <Route path="/" element={<Navigate to="/setup" replace />} />
+                <Route path="/" element={<Navigate to="/groups" replace />} />
+                <Route path="/groups" element={<Groups />} />
                 <Route path="/setup" element={<Setup />} />
                 <Route path="/taskmap" element={<TaskMap />} />
                 <Route path="/dashboard" element={<Dashboard />} />

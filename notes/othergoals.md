@@ -12,3 +12,4 @@ Some notes of stuff to add etc.
 
 -DO YOUR WORK
 
+-make the loading screen for the plan nicer/better

@@ -21,6 +21,7 @@ import type {
   TraceStep,
 } from "@enforcer/shared";
 import { config, rules } from "../config";
+import { DEMO_PROJECT_ID } from "../demo/mode";
 
 type Sql = postgres.Sql;
 let pool: Sql | undefined;
@@ -261,10 +262,13 @@ export async function listGroups(user: { email?: string; discordId?: string } | 
     `SELECT p.id, p.name, p.plan_active, p.deadline, p.invite_code, p.created_at, m.name AS member_name, m.discord_id, m.github_username, m.contract_join_pending
      FROM projects p
      JOIN members m ON m.project_id = p.id
-     WHERE (? <> '' AND m.discord_id = ?)
-        OR (? <> '' AND m.email IS NOT NULL AND lower(m.email) = ?)
+     WHERE p.id <> ?
+       AND ((? <> '' AND m.discord_id = ?)
+        OR (? <> '' AND m.email IS NOT NULL AND lower(m.email) = ?))
      ORDER BY p.created_at DESC`,
-    discordId, discordId, email, email,
+    // The public demo is never "your" group: its members share the presenter's Discord account
+    // so demo DMs land on one screen, which would otherwise list PayLite in the presenter's groups.
+    DEMO_PROJECT_ID, discordId, discordId, email, email,
   );
   const chosen = new Map<string, Row>();
   for (const row of rows) {

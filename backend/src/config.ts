@@ -6,6 +6,23 @@ import { fileURLToPath } from "node:url";
 export const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 loadEnv({ path: resolve(ROOT_DIR, ".env") });
 
+/**
+ * The team's time zone for check-in times and the demo clock. APP_TIMEZONE wins, then TZ, but only if
+ * it's a real IANA zone: Vercel sets TZ=":UTC" for its servers, which Intl rejects ("Invalid time zone").
+ */
+function appTimezone(): string {
+  for (const candidate of [process.env.APP_TIMEZONE, process.env.TZ]) {
+    if (!candidate) continue;
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: candidate });
+      return candidate;
+    } catch {
+      /* not a zone name, e.g. ":UTC" */
+    }
+  }
+  return "America/Toronto";
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 3001),
   databasePath: resolve(ROOT_DIR, process.env.DATABASE_PATH ?? "./data/enforcer.db"),
@@ -23,7 +40,7 @@ export const config = {
   discordPublicKey: process.env.DISCORD_PUBLIC_KEY ?? "", // verifies /api/discord/interactions
   cronSecret: process.env.CRON_SECRET ?? "", // Supabase pg_cron sends it to /api/cron/*
   demoPresenterKey: process.env.DEMO_PRESENTER_KEY ?? "", // demo check-ins only send Discord messages with it (#76)
-  timezone: process.env.TZ ?? "America/Toronto",
+  timezone: appTimezone(),
   supabaseUrl: (process.env.SUPABASE_URL ?? "").replace(/\/+$/, ""),
   // Sign-in is on whenever Supabase is configured, unless explicitly disabled (local demo only).
   authDisabled: process.env.AUTH_DISABLED === "true",

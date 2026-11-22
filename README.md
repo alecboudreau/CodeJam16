@@ -651,6 +651,7 @@ DISCORD_APP_ID=                 # for registering the /link command
 DISCORD_GUILD_ID=               # the team's server
 DISCORD_GROUP_CHANNEL_ID=
 TZ=America/Toronto              # check-in crons run in this timezone
+APP_TIMEZONE=America/Toronto    # optional; wins over TZ. On Vercel TZ is ":UTC" (not a zone name), so it's ignored and the default America/Toronto is used
 FRONTEND_URL=http://localhost:5173
 VITE_API_URL=http://localhost:3001/api
 VITE_USE_MOCKS=true

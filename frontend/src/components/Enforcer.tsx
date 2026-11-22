@@ -23,7 +23,7 @@ export function Enforcer({
       alt={
         decorative
           ? ""
-          : "Enforcer, a watchful rook in a green jacket holding a clipboard"
+          : "Enforcer, a muscular minotaur in a brown trench coat and tie, holding a baton"
       }
       draggable={false}
     />

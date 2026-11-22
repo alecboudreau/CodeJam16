@@ -114,7 +114,7 @@ components:
 
 A composed project steward keeps commitments visible. Warm ivory surroundings and parchment working surfaces make a practical, information-rich workspace feel calm. Umber actions and restrained outlines provide clear hierarchy without theatrical effects.
 
-The Enforcer supplies the warmth: a watchful charcoal rook in a green chore jacket, with an ochre beak and clipboard. His appearances accompany guidance, onboarding, feedback and progress rather than becoming decoration on every control. Public Sans keeps the interface precise and approachable.
+The Enforcer supplies the warmth: a watchful charcoal minotaur in a tobacco-brown trench coat, with ivory horns and aged-brass details. His appearances accompany guidance, onboarding, feedback and progress rather than becoming decoration on every control. Public Sans keeps the interface precise and approachable.
 
 **Key Characteristics:**
 - Calm ivory and tobacco surfaces and umber actions.
@@ -203,7 +203,7 @@ The desktop rail uses compact outlined SVG icons and label-sized text. Active it
 
 ### The Enforcer
 
-Use `public/brand/enforcer.png` and `enforcer-small.png`, keeping the natural (2:3) proportions with contained sizing. The rook is charcoal, wears a green chore jacket and carries a clipboard; his ochre beak ties into the warmer palette. A briefing is a low, wide tonal panel with left-aligned copy and the character at the right. Empty states and onboarding give him more room; loading and error feedback reduce him to a small companion. The character communicates watchfulness and support without replacing labels or factual status.
+Use `public/brand/enforcer.png` and `enforcer-small.png`, keeping the natural (2:3) proportions with contained sizing. The minotaur has charcoal fur, a tobacco-brown trench coat, ivory horns and aged-brass accessories that anchor the warmer palette. A briefing is a low, wide tonal panel with left-aligned copy and the character at the right. Empty states and onboarding give him more room; loading and error feedback reduce him to a small companion. The character communicates watchfulness and support without replacing labels or factual status.
 
 ### Progress and Feedback
 

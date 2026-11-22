@@ -382,7 +382,7 @@ function AppShell() {
           </span>
           <span>
             Enforcer
-            <span className="brand-caption">Make progress together.</span>
+            <span className="brand-caption">Do your work</span>
           </span>
         </Link>
         <div className="rail-project">

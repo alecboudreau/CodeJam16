@@ -2,22 +2,22 @@
 name: The Enforcer
 description: A composed, character-led workspace for keeping project commitments.
 colors:
-  canvas: "#f3f4f0"
-  surface: "#fff"
-  surface-soft: "#eef1eb"
-  rail: "#e9eee7"
-  ink: "#26382f"
-  muted: "#59665e"
-  subtle: "#657168"
-  line: "#dce2d8"
-  line-strong: "#7d8d7a"
-  pine: "#315b48"
-  pine-hover: "#254937"
-  pine-soft: "#e3ece2"
-  ochre: "#795a22"
-  ochre-soft: "#f2eddf"
-  clay: "#9b4538"
-  clay-soft: "#f8ebe6"
+  canvas: "#f7f2ee"
+  surface: "#fffdf9"
+  surface-soft: "#eee5de"
+  rail: "#e9ddd2"
+  ink: "#312826"
+  muted: "#6c5d54"
+  subtle: "#75665c"
+  line: "#ded1c5"
+  line-strong: "#8d7868"
+  umber: "#6c4d3d"
+  umber-hover: "#503a2e"
+  umber-soft: "#e8dbcf"
+  ochre: "#795827"
+  ochre-soft: "#f2e7d0"
+  clay: "#984b39"
+  clay-soft: "#f7e9e1"
 typography:
   display:
     fontFamily: "Public Sans, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
@@ -69,14 +69,14 @@ spacing:
   stack: "28px"
 components:
   button-primary:
-    backgroundColor: "{colors.pine}"
+    backgroundColor: "{colors.umber}"
     textColor: "{colors.surface}"
     typography: "{typography.label}"
     rounded: "{rounded.control}"
     padding: "9px 14px"
     height: "42px"
   button-primary-hover:
-    backgroundColor: "{colors.pine-hover}"
+    backgroundColor: "{colors.umber-hover}"
   button-secondary:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -97,7 +97,7 @@ components:
     rounded: "{rounded.field}"
     padding: "8px 12px"
   navigation-active:
-    backgroundColor: "{colors.pine}"
+    backgroundColor: "{colors.umber}"
     textColor: "{colors.surface}"
     rounded: "{rounded.control}"
     padding: "11px 13px"
@@ -112,34 +112,34 @@ components:
 
 **Creative North Star: "The Composed Project Steward"**
 
-A composed project steward keeps commitments visible. Pale mineral surroundings and white working surfaces make a practical, information-rich workspace feel calm. Pine actions and restrained outlines provide clear hierarchy without theatrical effects.
+A composed project steward keeps commitments visible. Warm ivory surroundings and parchment working surfaces make a practical, information-rich workspace feel calm. Umber actions and restrained outlines provide clear hierarchy without theatrical effects.
 
 The Enforcer supplies the warmth: a watchful charcoal rook in a green chore jacket, with an ochre beak and clipboard. His appearances accompany guidance, onboarding, feedback and progress rather than becoming decoration on every control. Public Sans keeps the interface precise and approachable.
 
 **Key Characteristics:**
-- Calm mineral surfaces and pine actions.
+- Calm ivory and tobacco surfaces and umber actions.
 - Compact, readable working density.
 - Restrained corners and outlined SVG icons.
 - A firm, friendly character used at meaningful moments.
 
 ## Colors
 
-Muted green working tones carry the identity; warm attention and error tones remain functional signals. The frontmatter records the source custom properties. Legacy utility color names are remapped to this palette in the stylesheet, so a `blue` utility renders as green rather than introducing a separate brand accent.
+Tobacco brown, charcoal, taupe and aged-brass working tones sampled from `Muscular Minotaur in a Trench Coat.png` carry the identity; warm attention and error tones remain functional signals. The frontmatter records the source custom properties. Legacy utility color names are remapped to this palette in the stylesheet, so a `blue` utility renders as tobacco brown rather than introducing a separate brand accent.
 
 ### Primary
-- **Pine** and **Pine Hover** mark primary actions and active navigation. **Pine Soft** gives Enforcer briefings a calm tonal field.
+- **Umber** and **Umber Hover** mark primary actions and active navigation. **Umber Soft** gives Enforcer briefings a calm tonal field.
 
 ### Secondary
 - **Ochre** and **Ochre Soft** support attention. Utility-built attention panels also use the implemented amber aliases.
 - **Clay** and **Clay Soft** indicate errors; the interface pairs them with explanatory text and recovery actions.
 
 ### Neutral
-- **Mineral Canvas** surrounds **White Surface** work panels.
+- **Ivory Canvas** surrounds **Parchment Surface** work panels.
 - **Soft Surface** and **Rail** separate supporting regions without elevation.
 - **Ink** is the main text; **Muted** and **Subtle** carry supporting information.
 - **Line** divides regions; **Strong Line** outlines fields and secondary controls.
 
-**The Pine Action Rule.** Use pine for primary actions, the active navigation item and progress; reserve ochre and clay for attention and errors.
+**The Umber Action Rule.** Use umber for primary actions, the active navigation item and progress; reserve ochre and clay for attention and errors.
 
 ## Typography
 
@@ -167,7 +167,7 @@ The rhythm is predominantly multiples of four and eight, with optical adjustment
 
 ## Elevation & Depth
 
-The interface is flat. Background tone, white surfaces, fine borders and whitespace convey grouping. There is no ambient card-shadow vocabulary. Field focus uses an outlined border and a subtle two-pixel ring; global keyboard focus is a three-pixel pine outline with a three-pixel offset.
+The interface is flat. Background tone, white surfaces, fine borders and whitespace convey grouping. There is no ambient card-shadow vocabulary. Field focus uses an outlined border and a subtle two-pixel ring; global keyboard focus is a three-pixel umber outline with a three-pixel offset.
 
 **The Quiet Surface Rule.** Separate working regions through pale tone, whitespace and fine borders; do not add decorative elevation.
 
@@ -179,11 +179,11 @@ Working panels and cards use the panel radius; primary, secondary and navigation
 
 ### Buttons
 
-Compact and confident. Primary buttons use pine with white text, secondary buttons white with a strong outline, and quiet buttons transparent with muted text. The shared button uses the label role and the frontmatter padding. Hover darkens primary pine, softens secondary surfaces, and gives quiet actions a pale fill. Press reduces brightness to (0.96); disabled buttons use half opacity. Icon controls retain a full hit target and accessible name. State transitions use the fast duration; there is no hover lift.
+Compact and confident. Primary buttons use umber with white text, secondary buttons white with a strong outline, and quiet buttons transparent with muted text. The shared button uses the label role and the frontmatter padding. Hover darkens primary umber, softens secondary surfaces, and gives quiet actions a pale fill. Press reduces brightness to (0.96); disabled buttons use half opacity. Icon controls retain a full hit target and accessible name. State transitions use the fast duration; there is no hover lift.
 
 ### Chips
 
-Status labels use compact padding and the status radius. Their semantic colors come from green success, ochre attention and clay error aliases. Filter buttons are related controls with a (5px) radius: selected filters have a white fill and strong outline; hover adds pine-soft. Status information is expressed in text as well as color.
+Status labels use compact padding and the status radius. Their semantic colors come from brass success, ochre attention and clay error aliases. Filter buttons are related controls with a (5px) radius: selected filters have a white fill and strong outline; hover adds umber-soft. Status information is expressed in text as well as color.
 
 ### Cards / Containers
 
@@ -191,7 +191,7 @@ White panels with a fine line border and panel corners. The standard panel uses 
 
 ### Inputs / Fields
 
-White fields have strong-line borders, field corners and (8px 12px) padding. Setup focus shifts the border to its green utility alias and adds a pale two-pixel ring; disabled fields use the canvas and subtle text. Selection controls use pine accents. Textareas resize vertically. Field labels remain visible rather than relying on placeholders.
+White fields have strong-line borders, field corners and (8px 12px) padding. Setup focus shifts the border to its umber utility alias and adds a pale two-pixel ring; disabled fields use the canvas and subtle text. Selection controls use umber accents. Textareas resize vertically. Field labels remain visible rather than relying on placeholders.
 
 ### Read-only Plan Summaries
 
@@ -199,7 +199,7 @@ An active Task map displays descriptions and labeled task facts as wrapping text
 
 ### Navigation
 
-The desktop rail uses compact outlined SVG icons and label-sized text. Active items are solid pine with white text; hover uses a pale green fill. Count badges use a fine current-color border and small corners. Mobile navigation is an explicit in-flow disclosure, preserving route labels and keyboard access. Opening it moves focus to the first route link. Escape closes it and returns focus to the toggle; choosing a route closes it and moves focus to the main content.
+The desktop rail uses compact outlined SVG icons and label-sized text. Active items are solid umber with white text; hover uses a pale tobacco fill. Count badges use a fine current-color border and small corners. Mobile navigation is an explicit in-flow disclosure, preserving route labels and keyboard access. Opening it moves focus to the first route link. Escape closes it and returns focus to the toggle; choosing a route closes it and moves focus to the main content.
 
 ### The Enforcer
 
@@ -207,7 +207,7 @@ Use `public/brand/enforcer.png` and `enforcer-small.png`, keeping the natural (2
 
 ### Progress and Feedback
 
-Progress pairs a numeric percentage with a pine bar on a soft track, (6px) high or (8px) for overall project progress. The activity timeline uses pine lines and points, neutral grid lines and an accessible data table. Loading uses pale lines with a (1.6s) opacity animation. Errors use clay text and pale clay panels with a recovery action when available. Reduced motion disables animation and effectively removes transitions.
+Progress pairs a numeric percentage with a umber bar on a soft track, (6px) high or (8px) for overall project progress. The activity timeline uses umber lines and points, neutral grid lines and an accessible data table. Loading uses pale lines with a (1.6s) opacity animation. Errors use clay text and pale clay panels with a recovery action when available. Reduced motion disables animation and effectively removes transitions.
 
 ## Do's and Don'ts
 

@@ -3,53 +3,53 @@ import type { Checkpoint, Task } from "@enforcer/shared";
 import { api } from "../api/client";
 import { useProject } from "../App";
 import { EmptyState } from "../components/Enforcer";
+import Icon from "../components/Icon";
 import { ErrorState, LoadingState } from "../components/PageFeedback";
 
 interface WorkItem {
   id: string;
-  projectName: string;
   task: Task;
   checkpoints: Checkpoint[];
   dependencyTitles: string[];
+  /** The next checkpoint that isn't met yet, if any. */
+  next?: Checkpoint;
+  /** When this task is next due: its next open checkpoint, or the project deadline. */
+  dueAt: string;
 }
 
-const orderKey = (login: string) => `enforcer:work-order:${login.toLowerCase()}`;
-
-function readOrder(login: string): string[] {
-  try {
-    const saved = JSON.parse(localStorage.getItem(orderKey(login)) || "[]");
-    return Array.isArray(saved) ? saved.filter((id) => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
+interface ProjectWork {
+  id: string;
+  name: string;
+  deadline: string;
+  items: WorkItem[];
 }
 
-function applyOrder(items: WorkItem[], login: string): WorkItem[] {
-  const rank = new Map(readOrder(login).map((id, index) => [id, index]));
-  return [...items].sort((a, b) => (rank.get(a.id) ?? 10_000) - (rank.get(b.id) ?? 10_000) || a.task.title.localeCompare(b.task.title));
-}
-
-function formatWhen(value: string): string {
-  const time = Date.parse(value);
-  if (!Number.isFinite(time)) return value;
-  return new Date(time).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-}
+const time = (iso: string) => {
+  const value = Date.parse(iso);
+  return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
+};
+const shortDate = (iso: string) =>
+  Number.isFinite(Date.parse(iso))
+    ? new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+    : iso;
+const longDate = (iso: string) =>
+  Number.isFinite(Date.parse(iso))
+    ? new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+    : iso;
+const statusText: Record<Checkpoint["status"], string> = { pending: "Pending", met: "Met", missed: "Missed", alerted: "Missed · team told" };
 
 export default function MyWork() {
   const { project, viewerId } = useProject();
   const viewer = project?.members.find((member) => member.id === viewerId);
-  const [items, setItems] = useState<WorkItem[]>([]);
+  const [projects, setProjects] = useState<ProjectWork[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
-  const [openId, setOpenId] = useState("");
-  const [reordering, setReordering] = useState(false);
-  const [draggingId, setDraggingId] = useState("");
 
   useEffect(() => {
     if (!viewer) {
       setLoading(false);
-      setItems([]);
+      setProjects([]);
       return;
     }
     let cancelled = false;
@@ -60,42 +60,41 @@ export default function MyWork() {
         const login = viewer.githubUsername.toLowerCase();
         const email = viewer.email?.toLowerCase();
         const groupsToRead = project && groups.some((group) => group.id === project.id) ? groups : [...groups, { id: project?.id ?? "", name: project?.name ?? "" }];
-        const lists = await Promise.all(groupsToRead.filter((group) => group.id).map(async (group) => {
+        const lists = await Promise.all(groupsToRead.filter((group) => group.id).map(async (group): Promise<ProjectWork | null> => {
           const [full, plan] = await Promise.all([api.getProject(group.id), api.getTaskMap(group.id)]);
           const mine = full.members.find((member) => member.githubUsername.toLowerCase() === login)
             ?? (email ? full.members.find((member) => member.email?.toLowerCase() === email) : undefined);
-          if (!mine) return [];
+          if (!mine) return null;
           const titles = new Map(plan.tasks.map((task) => [task.id, task.title]));
-          return plan.tasks
+          const items = plan.tasks
             .filter((task) => task.ownerId === mine.id && task.completion < 1)
-            .map((task) => ({
-              id: `${full.id}:${task.id}`,
-              projectName: full.name,
-              task,
-              checkpoints: plan.checkpoints.filter((checkpoint) => checkpoint.taskId === task.id),
-              dependencyTitles: task.dependsOn.map((id) => titles.get(id) ?? id),
-            }));
+            .map((task) => {
+              const checkpoints = plan.checkpoints
+                .filter((checkpoint) => checkpoint.taskId === task.id)
+                .sort((a, b) => time(a.dueAt) - time(b.dueAt));
+              const next = checkpoints.find((checkpoint) => checkpoint.status !== "met");
+              return {
+                id: `${full.id}:${task.id}`,
+                task,
+                checkpoints,
+                dependencyTitles: task.dependsOn.map((id) => titles.get(id) ?? id),
+                next,
+                dueAt: next?.dueAt ?? full.deadline,
+              };
+            })
+            .sort((a, b) => time(a.dueAt) - time(b.dueAt) || a.task.title.localeCompare(b.task.title));
+          return items.length ? { id: full.id, name: full.name, deadline: full.deadline, items } : null;
         }));
-        if (!cancelled) setItems(applyOrder(lists.flat(), viewer.githubUsername));
+        // Projects whose next task is due soonest come first.
+        const sorted = lists
+          .filter((value): value is ProjectWork => value !== null)
+          .sort((a, b) => time(a.items[0].dueAt) - time(b.items[0].dueAt));
+        if (!cancelled) setProjects(sorted);
       })
       .catch((reason: unknown) => { if (!cancelled) setError(reason instanceof Error ? reason.message : "Could not load your work."); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [viewer, project, attempt]);
-
-  function move(targetId: string) {
-    if (!viewer || !draggingId || draggingId === targetId) return;
-    setItems((current) => {
-      const next = [...current];
-      const from = next.findIndex((item) => item.id === draggingId);
-      const to = next.findIndex((item) => item.id === targetId);
-      if (from < 0 || to < 0) return current;
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      try { localStorage.setItem(orderKey(viewer.githubUsername), JSON.stringify(next.map((item) => item.id))); } catch { /* Order still applies for this visit. */ }
-      return next;
-    });
-  }
 
   if (!project) {
     return (
@@ -115,58 +114,73 @@ export default function MyWork() {
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack max-w-4xl">
       <header className="page-heading">
         <div>
           <h1>My work</h1>
-          <p>Unfinished tasks assigned to {viewer.name}, across every group.</p>
+          <p>Unfinished tasks assigned to {viewer.name}, grouped by project and sorted by what&apos;s due first.</p>
         </div>
-        <button type="button" className={reordering ? "btn btn-primary" : "btn btn-secondary"} onClick={() => { setReordering((on) => !on); setDraggingId(""); }}>
-          {reordering ? "Done reordering" : "Reorder tasks"}
-        </button>
       </header>
-      {loading ? <LoadingState message="Loading your tasks…" /> : error ? <ErrorState title="Could not load your work" onRetry={() => setAttempt((n) => n + 1)}><p>{error}</p></ErrorState> : items.length === 0 ? (
-        <EmptyState title="Nothing unfinished is assigned to you."><p>Completed tasks stay on each group's plan and do not appear here.</p></EmptyState>
+      {loading ? <LoadingState message="Loading your tasks…" /> : error ? <ErrorState title="Could not load your work" onRetry={() => setAttempt((n) => n + 1)}><p>{error}</p></ErrorState> : projects.length === 0 ? (
+        <EmptyState title="Nothing unfinished is assigned to you."><p>Completed tasks stay on each group&apos;s plan and do not appear here.</p></EmptyState>
       ) : (
-        <ul className="page-stack" style={{ gap: 12, listStyle: "none", margin: 0, padding: 0 }}>
-          {items.map((item) => {
-            const open = openId === item.id;
-            return (
-              <li
-                key={item.id}
-                className="panel"
-                draggable={reordering}
-                onDragStart={() => setDraggingId(item.id)}
-                onDragOver={(event) => { if (reordering) event.preventDefault(); }}
-                onDrop={() => move(item.id)}
-                style={reordering ? { cursor: "grab" } : undefined}
-              >
-                <button type="button" onClick={() => { if (!reordering) setOpenId(open ? "" : item.id); }} aria-expanded={open} style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 16, background: "none", border: 0, padding: 0, textAlign: "left", color: "inherit", cursor: reordering ? "grab" : "pointer" }}>
-                  <span>
-                    <strong>{item.task.title}</strong>
-                    <span className="supporting-copy" style={{ display: "block" }}>{item.projectName} · {Math.round(item.task.completion * 100)}% complete</span>
-                  </span>
-                  <span className="supporting-copy">{reordering ? "Drag" : open ? "Hide" : "Details"}</span>
-                </button>
-                {open && !reordering && (
-                  <div className="supporting-copy" style={{ marginTop: 16 }}>
-                    <p>{item.task.description || "No description yet."}</p>
-                    <p>Effort {item.task.points} · {item.task.tracked ? "Tracked in the repo" : "Not tracked in the repo"}</p>
-                    {item.task.paths.length > 0 && <p>Paths: {item.task.paths.join(", ")}</p>}
-                    {item.dependencyTitles.length > 0 && <p>Depends on: {item.dependencyTitles.join(", ")}</p>}
-                    {item.checkpoints.length > 0 && (
-                      <ul>
-                        {item.checkpoints.map((checkpoint) => (
-                          <li key={checkpoint.id}>{checkpoint.criteria} · {checkpoint.status} · due {formatWhen(checkpoint.dueAt)}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <div className="work-projects">
+          {projects.map((group) => (
+            <section key={group.id} className="work-project" aria-labelledby={`work-${group.id}`}>
+              <header className="work-project-head">
+                <h2 id={`work-${group.id}`}>
+                  <span className="work-project-mark" aria-hidden="true">{group.name.trim().charAt(0).toUpperCase() || "P"}</span>
+                  {group.name}
+                </h2>
+                <p className="work-project-meta">
+                  Deadline {shortDate(group.deadline)} · {group.items.length} {group.items.length === 1 ? "task" : "tasks"}
+                </p>
+              </header>
+              <div>
+                {group.items.map((item) => {
+                  const overdue = item.next ? item.next.status !== "pending" : false;
+                  return (
+                    <details key={item.id} className="plan-task">
+                      <summary>
+                        <span className={`work-due ${overdue ? "is-overdue" : ""}`}>
+                          <time dateTime={item.dueAt}>{shortDate(item.dueAt)}</time>
+                          {overdue && <span>Missed</span>}
+                        </span>
+                        <span className="plan-task-title">
+                          <h3>{item.task.title}</h3>
+                          <span className="plan-task-meta">
+                            {item.next ? `Next: ${item.next.criteria}` : item.task.tracked ? "Due by the project deadline" : "Not tracked · due by the project deadline"}
+                            {item.task.tracked && ` · ${Math.round(item.task.completion * 100)}% done`}
+                          </span>
+                        </span>
+                        <Icon name="chevron" className="plan-task-chevron" />
+                      </summary>
+                      <div className="plan-task-body work-detail">
+                        <p>{item.task.description || "No description yet."}</p>
+                        <p className="work-facts">
+                          {item.task.points} {item.task.points === 1 ? "point" : "points"} of effort · {item.task.tracked ? "Tracked in the repo" : "Not tracked in the repo"}
+                          {item.task.paths.length > 0 && <> · <code>{item.task.paths.join(", ")}</code></>}
+                        </p>
+                        {item.dependencyTitles.length > 0 && <p className="work-facts">Starts after: {item.dependencyTitles.join(", ")}</p>}
+                        {item.checkpoints.length > 0 && (
+                          <ul className="contract-checkpoints" aria-label={`Checkpoints for ${item.task.title}`}>
+                            {item.checkpoints.map((checkpoint) => (
+                              <li key={checkpoint.id}>
+                                <time dateTime={checkpoint.dueAt} title={longDate(checkpoint.dueAt)}>{shortDate(checkpoint.dueAt)}</time>
+                                <span>{checkpoint.criteria}</span>
+                                <b className={`contract-cp-status is-${checkpoint.status}`}>{statusText[checkpoint.status]}</b>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );

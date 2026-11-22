@@ -1,0 +1,12 @@
+# Never upload secrets or local data to Vercel (settings live in Vercel's environment instead).
+.env
+.env.*
+!.env.example
+data/
+*.db
+*.db-*
+node_modules/
+**/node_modules/
+backend/dist/
+frontend/dist/
+.claude/

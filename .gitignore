@@ -9,3 +9,7 @@ data/
 .DS_Store
 .vite/
 backend/dist/
+
+.vercel
+.env*
+!.env.example

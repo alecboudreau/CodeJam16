@@ -366,16 +366,18 @@ function ProjectDashboard({
                               : "Untracked"}
                           </span>
                         </div>
-                        {task.description && (
-                          <p className="mt-3 text-sm leading-6 text-gray-600">
-                            {task.description}
-                          </p>
-                        )}
+                        {task.description &&
+                          task.description !== task.title && (
+                            <p className="mt-3 text-sm leading-6 text-gray-600">
+                              {task.description}
+                            </p>
+                          )}
                         {task.tracked ? (
                           <>
                             <div className="mt-4">
                               <TaskProgress
-                                label={`${task.title} completion`}
+                                label="Completion"
+                                ariaLabel={`${task.title} completion`}
                                 completion={task.completion}
                               />
                             </div>

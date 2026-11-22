@@ -1,9 +1,15 @@
 interface TaskProgressProps {
   label: string;
   completion: number;
+  // Screen-reader name when the visible label relies on the surrounding card for context.
+  ariaLabel?: string;
 }
 
-export default function TaskProgress({ label, completion }: TaskProgressProps) {
+export default function TaskProgress({
+  label,
+  completion,
+  ariaLabel = label,
+}: TaskProgressProps) {
   const percent = Math.round(
     Math.min(1, Math.max(0, Number.isFinite(completion) ? completion : 0)) *
       100,
@@ -16,7 +22,7 @@ export default function TaskProgress({ label, completion }: TaskProgressProps) {
       </div>
       <div
         role="progressbar"
-        aria-label={label}
+        aria-label={ariaLabel}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}

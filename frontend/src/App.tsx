@@ -41,7 +41,7 @@ import {
 import PageErrorBoundary from "./components/PageErrorBoundary";
 import Inbox, { useInbox } from "./pages/Inbox";
 import Icon, { type IconName } from "./components/Icon";
-import { Enforcer } from "./components/Enforcer";
+import { EmptyState, Enforcer } from "./components/Enforcer";
 
 const links = [
   ["/dashboard", "Dashboard", "dashboard"],
@@ -406,7 +406,7 @@ function AppShell() {
             >
               <Icon name={icon as IconName} />
               <span>{label}</span>
-              {to === "/inbox" && project && viewerId && (
+              {to === "/inbox" && project && viewerId && inbox.data?.unreadCount !== 0 && (
                 <span
                   className="nav-count"
                   aria-live="polite"
@@ -426,7 +426,7 @@ function AppShell() {
           ))}
         </nav>
         <div className="rail-steward">
-          <Enforcer />
+          <Enforcer decorative />
           <p>
             Keep your word.
             <br />
@@ -460,7 +460,7 @@ function AppShell() {
             <span className="mobile-brand">The Enforcer</span>
             <span className="topbar-route">
               {links.find(([to]) => to === location.pathname)?.[1] ??
-                "Overview"}
+                "Page not found"}
             </span>
             {useMocks && <span className="demo-data-label">Sample data</span>}
           </div>
@@ -535,7 +535,7 @@ function AppShell() {
                   {useMocks && (
                     <button
                       type="button"
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium"
+                      className="btn btn-secondary"
                       onClick={openDemo}
                     >
                       Open demo project
@@ -543,7 +543,7 @@ function AppShell() {
                   )}
                   <button
                     type="button"
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium"
+                    className="btn btn-secondary"
                     onClick={() => {
                       setProject(null);
                       navigate("/setup");
@@ -573,11 +573,15 @@ function AppShell() {
                 <Route
                   path="*"
                   element={
-                    <ErrorState title="Page not found">
-                      <Link to="/dashboard" className="font-medium underline">
-                        Open Dashboard
-                      </Link>
-                    </ErrorState>
+                    <EmptyState
+                      title="Nothing on the plan lives here."
+                      action={{ to: "/dashboard", label: "Back to Dashboard" }}
+                    >
+                      <p>
+                        This page doesn’t exist. It may have moved, or the link
+                        has a typo. Use the navigation to find your way back.
+                      </p>
+                    </EmptyState>
                   }
                 />
               </Routes>
@@ -667,14 +671,14 @@ function DemoBanner() {
             type="button"
             disabled={busy}
             onClick={reset}
-            className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-medium hover:bg-amber-100 disabled:opacity-50"
+            className="btn btn-secondary"
           >
             {busy ? "Resetting…" : "Reset demo"}
           </button>
           <button
             type="button"
             onClick={exit}
-            className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-medium hover:bg-amber-100"
+            className="btn btn-secondary"
           >
             Exit demo
           </button>

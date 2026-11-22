@@ -5,9 +5,12 @@ import Icon from "./Icon";
 export function Enforcer({
   size = "small",
   className = "",
+  decorative = false,
 }: {
   size?: "small" | "large";
   className?: string;
+  // The rail copy repeats on every page; screen readers hear the description once, from the page.
+  decorative?: boolean;
 }) {
   return (
     <img
@@ -17,7 +20,11 @@ export function Enforcer({
       }
       width="512"
       height="768"
-      alt="The Enforcer, a watchful rook in a green jacket holding a clipboard"
+      alt={
+        decorative
+          ? ""
+          : "The Enforcer, a watchful rook in a green jacket holding a clipboard"
+      }
       draggable={false}
     />
   );

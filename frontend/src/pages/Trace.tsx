@@ -415,13 +415,16 @@ function ProjectTrace({
             >
               {history.map((row) => (
                 <option key={row.id} value={row.id}>
-                  {new Date(row.startedAt).toLocaleString()} · {row.kind} ·{" "}
+                  {new Date(row.startedAt).toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}{" "}
+                  · {row.kind} ·{" "}
                   {row.skipped
                     ? "Skipped"
                     : row.finishedAt
                       ? "Finished"
-                      : "Running"}{" "}
-                  · {row.id}
+                      : "Running"}
                 </option>
               ))}
             </select>

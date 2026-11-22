@@ -9,6 +9,7 @@ import {
 import { useProject } from "../App";
 import { LoadingState } from "../components/PageFeedback";
 import { EmptyState, EnforcerNote } from "../components/Enforcer";
+import Icon from "../components/Icon";
 
 const buttonClass = "btn btn-secondary";
 const messageOf = (error: unknown) =>
@@ -206,13 +207,47 @@ function messageDetails(item: InboxItem) {
     </>
   );
 }
-function answeredText(item: InboxItem): string {
+function answeredText(item: InboxItem): { title: string; detail: string } {
   const answer = item.answered!;
   if (answer.status === "blocked")
-    return `✓ You pressed Blocked: waiting on ${answer.blockedByName || "a teammate"}. Reminders paused.`;
+    return {
+      title: `Blocked: waiting on ${answer.blockedByName || "a teammate"}`,
+      detail: "Your grace clock is paused while you wait.",
+    };
   if (answer.status === "on_it")
-    return "✓ You pressed On it. Reminders paused for 2 days; the grace period is unchanged.";
-  return "✓ You pressed Need help.";
+    return {
+      title: "On it",
+      detail: "Reminders paused for 2 days. The grace period is unchanged.",
+    };
+  return {
+    title: "Need help",
+    detail: "Your request for a hand goes to the team.",
+  };
+}
+
+// The headline answers to what is actually waiting: your own checkpoint, a teammate, or nothing.
+function inboxNote(items: InboxItem[]) {
+  const unread = items.filter((item) => !item.answered);
+  if (unread.some((item) => item.kind === "nudge"))
+    return {
+      title: "You said you'd get this done.",
+      tone: "attention" as const,
+      detail:
+        "A reminder is a chance to make the next move. Let the team know if you're on it, blocked, or need a hand.",
+    };
+  if (unread.length)
+    return {
+      title: "Someone's counting on you.",
+      tone: "attention" as const,
+      detail:
+        "A teammate is waiting on your work. Reply so they know where it stands.",
+    };
+  return {
+    title: "Good. Everything has an answer.",
+    tone: "success" as const,
+    detail:
+      "Your responses are saved. New reminders will appear here if a checkpoint needs you.",
+  };
 }
 function Reminder({
   item,
@@ -227,17 +262,30 @@ function Reminder({
 }) {
   const [picking, setPicking] = useState(false);
   const [blocker, setBlocker] = useState("");
-  if (item.answered)
+  if (item.answered) {
+    const answer = answeredText(item);
     return (
-      <details className="rounded-xl border border-gray-200 bg-white p-4">
-        <summary className="text-sm font-medium text-green-800">
-          {answeredText(item)}
+      <details className="reminder-answered">
+        <summary>
+          <span className="reminder-answered-mark">
+            <Icon name="check" />
+          </span>
+          <span className="reminder-answered-copy">
+            <strong>
+              You answered: {answer.title}
+              <span className="sr-only">, {item.checkpoint.taskTitle}</span>
+            </strong>
+            <span>{answer.detail}</span>
+          </span>
+          <span className="reminder-answered-toggle">
+            Message
+            <Icon name="chevron" />
+          </span>
         </summary>
-        <div className="mt-4 border-t border-gray-100 pt-4">
-          {messageDetails(item)}
-        </div>
+        <div className="reminder-answered-body">{messageDetails(item)}</div>
       </details>
     );
+  }
   return (
     <article
       aria-label={`${item.checkpoint.taskTitle}: ${item.checkpoint.criteria}`}
@@ -262,7 +310,11 @@ function Reminder({
           className={buttonClass}
           onClick={() => setPicking((value) => !value)}
         >
-          Blocked ▾
+          Blocked
+          <Icon
+            name="chevron"
+            className={picking ? "icon-flipped" : undefined}
+          />
         </button>
         <button
           type="button"
@@ -388,6 +440,8 @@ export default function Inbox({ inbox }: { inbox: InboxState }) {
       </div>
     );
   const items = inbox.data?.[tab] ?? [];
+  const forYou = inbox.data?.forYou ?? [];
+  const note = forYou.length ? inboxNote(forYou) : null;
   return (
     <div className="page-stack">
       <header className="page-heading">
@@ -407,19 +461,9 @@ export default function Inbox({ inbox }: { inbox: InboxState }) {
           Refresh Inbox
         </button>
       </header>
-      {!!items.length && (
-        <EnforcerNote
-          title={
-            inbox.data?.unreadCount
-              ? "You said you'd get this done."
-              : "Keep the conversation moving."
-          }
-          tone={inbox.data?.unreadCount ? "attention" : "calm"}
-        >
-          <p>
-            A reminder is a chance to make the next move. Let the team know if
-            you're on it, blocked, or need a hand.
-          </p>
+      {note && (
+        <EnforcerNote title={note.title} tone={note.tone}>
+          <p>{note.detail}</p>
         </EnforcerNote>
       )}
       <div

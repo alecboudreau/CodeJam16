@@ -604,8 +604,8 @@
   justify-content: space-between;
   gap: 22px;
   align-items: center;
-  min-height: 190px;
-  padding: 26px 34px;
+  min-height: 160px;
+  padding: 22px 30px;
   border-radius: 12px;
   background: var(--pine-soft);
   overflow: hidden;
@@ -619,7 +619,7 @@
 .enforcer-note-copy {
   position: relative;
   z-index: 1;
-  max-width: 570px;
+  max-width: 640px;
 }
 .enforcer-note h2 {
   margin: 0;
@@ -630,9 +630,9 @@
 .enforcer-note-detail {
   max-width: 60ch;
   color: #53604b;
-  font-size: 0.8125rem;
-  line-height: 1.8;
-  margin-top: 10px;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  margin-top: 8px;
 }
 .enforcer-note .text-action {
   margin-top: 17px;
@@ -642,7 +642,7 @@
   width: 130px;
   height: 195px;
   align-self: end;
-  margin-block: -14px -26px;
+  margin-block: -12px -22px;
 }
 .dashboard-layout {
   display: grid;
@@ -793,12 +793,12 @@
   line-height: 1.8;
 }
 .empty-state {
-  min-height: 310px;
+  min-height: 240px;
   display: flex;
   gap: 36px;
   align-items: center;
   justify-content: center;
-  padding: 44px;
+  padding: 36px;
   background: #e8ede2;
   border-radius: 12px;
 }
@@ -933,6 +933,52 @@
 .setup-form > fieldset > legend {
   font-size: 0.9375rem;
 }
+/* Legends sit inside their panel as headings instead of notching the border. */
+.setup-form fieldset > legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin-bottom: 16px;
+}
+.setup-form fieldset > legend + * {
+  clear: both;
+}
+.setup-form fieldset fieldset > legend {
+  margin-bottom: 12px;
+}
+.file-drop {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 22px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-panel);
+  background: var(--canvas);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.file-drop:hover {
+  border-color: var(--pine);
+}
+.file-drop:focus-visible {
+  outline: 2px solid var(--pine);
+  outline-offset: 2px;
+}
+.file-drop::file-selector-button {
+  margin-right: 14px;
+  padding: 9px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.file-drop:hover::file-selector-button {
+  border-color: var(--pine);
+}
 .setup-form fieldset fieldset {
   border: 0;
   border-radius: 0;
@@ -970,7 +1016,7 @@
   font-size: 2.5rem;
   font-weight: 600;
   letter-spacing: -0.04em;
-  max-width: 12ch;
+  max-width: 15ch;
 }
 .auth-story p {
   margin-top: 20px;
@@ -1515,5 +1561,189 @@
   }
   .plan-task-summary {
     gap: 18px 20px;
+  }
+}
+/* Body copy never strands one word on its own line. */
+main p,
+main li,
+main dd {
+  text-wrap: pretty;
+}
+.icon-flipped {
+  transform: rotate(180deg);
+}
+.reminder-answered {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+.reminder-answered > summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  list-style: none;
+  border-radius: var(--radius-panel);
+}
+.reminder-answered > summary::-webkit-details-marker {
+  display: none;
+}
+.reminder-answered > summary:hover {
+  background: var(--surface-soft);
+}
+.reminder-answered-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--pine);
+  animation: answered-in var(--motion-work) var(--ease);
+}
+.reminder-answered-mark .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+.reminder-answered-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.reminder-answered-copy strong {
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+.reminder-answered-copy > span {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.reminder-answered-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.reminder-answered-toggle .ui-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--motion-fast) var(--ease);
+}
+.reminder-answered[open] .reminder-answered-toggle .ui-icon {
+  transform: rotate(180deg);
+}
+.reminder-answered-body {
+  margin: 0 18px;
+  padding: 16px 0 18px;
+  border-top: 1px solid var(--line);
+}
+@keyframes answered-in {
+  from {
+    transform: scale(0.6);
+  }
+}
+@media (max-width: 767px) {
+  .reminder-answered-toggle {
+    font-size: 0;
+  }
+}
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.plan-actions p {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.plan-grace-value {
+  margin: 16px 0;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.plan-list-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 8px;
+}
+.plan-list-heading h2 {
+  font-size: 1.0625rem;
+  font-weight: 650;
+}
+.plan-list-heading .filter-row {
+  margin: 0;
+}
+/* Collapsed tasks read as one list, not a stack of separate panels. */
+.plan-task:has(+ .plan-task) {
+  margin-block-end: 8px;
+}
+.plan-task {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+.plan-task > summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  list-style: none;
+  border-radius: var(--radius-panel);
+}
+.plan-task > summary::-webkit-details-marker {
+  display: none;
+}
+.plan-task > summary:hover {
+  background: var(--surface-soft);
+}
+.plan-task-title {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.plan-task-title h2 {
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+.plan-task-meta {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.plan-task-chevron {
+  color: var(--muted);
+  transition: transform var(--motion-fast) var(--ease);
+}
+.plan-task[open] .plan-task-chevron {
+  transform: rotate(180deg);
+}
+.plan-task-body {
+  margin: 0 20px;
+  padding: 20px 0 22px;
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 767px) {
+  .plan-task > summary {
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .plan-task > summary .status-label {
+    display: none;
+  }
+  .plan-task-body {
+    margin: 0 16px;
   }
 }

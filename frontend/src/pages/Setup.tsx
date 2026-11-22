@@ -381,7 +381,7 @@ export default function Setup() {
                   setFile(e.target.files?.[0] ?? null);
                   setError("");
                 }}
-                className="mt-3 block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                className="file-drop"
               />
             </label>
             <p id="spec-help" className="mt-3 text-xs text-gray-500">

@@ -14,6 +14,7 @@ import { useProject } from "../App";
 import AgreeBar from "../components/AgreeBar";
 import { LoadingState } from "../components/PageFeedback";
 import { EmptyState } from "../components/Enforcer";
+import Icon from "../components/Icon";
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-600";
@@ -111,6 +112,7 @@ function PlanEditor({
   const [saved, setSaved] = useState<Plan | null>(null);
   const [draft, setDraft] = useState<Plan | null>(null);
   const [proposing, setProposing] = useState(false);
+  const [mineOnly, setMineOnly] = useState(false);
   const [suggestion, setSuggestion] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -163,6 +165,8 @@ function PlanEditor({
     !!draft &&
     JSON.stringify(editable(baseline)) !== JSON.stringify(editable(draft));
   const locked = busy || (!!saved?.active && !proposing);
+  // An approved plan is for reading: tasks collapse to one line and can be narrowed to yours.
+  const readOnly = !!saved?.active && !proposing;
   const canApprove =
     !!saved && (!saved.active || (proposing && !!saved.pending));
   const nameOf = (id: string) =>
@@ -442,19 +446,28 @@ function PlanEditor({
                 />
               )}
               {saved.active && !proposing && (
-                <button
-                  type="button"
-                  disabled={busy || !viewerId}
-                  className={buttonClass}
-                  onClick={() => {
-                    setDraft(editingCopy(saved));
-                    setProposing(true);
-                    setError("");
-                    setNotice("");
-                  }}
-                >
-                  {saved.pending ? "Review pending change" : "Propose a change"}
-                </button>
+                <div className="plan-actions">
+                  <button
+                    type="button"
+                    disabled={busy || !viewerId}
+                    className={buttonClass}
+                    onClick={() => {
+                      setDraft(editingCopy(saved));
+                      setProposing(true);
+                      setError("");
+                      setNotice("");
+                    }}
+                  >
+                    {saved.pending
+                      ? "Review pending change"
+                      : "Propose a change"}
+                  </button>
+                  <p>
+                    {viewerId
+                      ? "The approved plan stays in effect until the team agrees to a change."
+                      : "Choose yourself in “Who are you?” to propose a change."}
+                  </p>
+                </div>
               )}
               {saved.active && proposing && (
                 <section
@@ -495,16 +508,14 @@ function PlanEditor({
                 </p>
               ) : (
                 <>
-                  {saved.active && (
+                  {saved.active && proposing && (
                     <p className="text-sm font-medium text-gray-600">
-                      {proposing
-                        ? saved.pending
-                          ? "Review or edit the pending change below."
-                          : "New proposal · not submitted yet"
-                        : "This approved plan is read-only."}
+                      {saved.pending
+                        ? "Review or edit the pending change below."
+                        : "New proposal · not submitted yet"}
                     </p>
                   )}
-                  {!viewerId && (
+                  {!viewerId && !readOnly && (
                     <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
                       Choose yourself in “Who are you?” to propose changes or
                       approve your items.
@@ -529,6 +540,12 @@ function PlanEditor({
                         Time to resolve a missed checkpoint before a team alert.
                         Everyone approves this setting.
                       </p>
+                      {readOnly ? (
+                        <p className="plan-grace-value">
+                          {saved.gracePeriodHours} hours
+                        </p>
+                      ) : (
+                        <>
                       <p className="mt-2 text-sm text-blue-800">
                         Suggested grace period: {suggestion} hours{" "}
                         <span className="text-gray-500">
@@ -557,32 +574,63 @@ function PlanEditor({
                           }
                         />
                       </label>
+                        </>
+                      )}
                       {approval(
                         { kind: "grace" },
                         null,
                         baseline!.graceApprovedBy,
                       )}
                     </section>
-                    {draft.tasks.map((task, index) => (
-                      <section
-                        key={task.id}
-                        aria-labelledby={`task-${task.id}`}
-                        className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6"
-                      >
-                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                          <h2
-                            id={`task-${task.id}`}
-                            className="text-lg font-semibold"
+                    {readOnly && (
+                      <div className="plan-list-heading">
+                        <h2>Tasks & checkpoints</h2>
+                        {viewerId && (
+                          <div
+                            className="filter-row"
+                            role="group"
+                            aria-label="Filter tasks"
                           >
-                            {index + 1}. {task.title || "Untitled task"}
-                          </h2>
-                          <span
-                            className={`status-label ${task.tracked ? "bg-blue-50 text-blue-800" : "bg-gray-100 text-gray-600"}`}
-                          >
-                            {task.tracked ? "Tracked" : "Untracked"}
-                          </span>
-                        </div>
-                        {saved.active && !proposing ? (
+                            {(
+                              [
+                                [false, "All tasks"],
+                                [true, "Assigned to me"],
+                              ] as const
+                            ).map(([value, label]) => (
+                              <button
+                                type="button"
+                                key={label}
+                                aria-pressed={mineOnly === value}
+                                className={`filter-button ${mineOnly === value ? "is-selected" : ""}`}
+                                onClick={() => setMineOnly(value)}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {readOnly &&
+                      mineOnly &&
+                      !draft.tasks.some((t) => t.ownerId === viewerId) && (
+                        <p className="filter-empty">
+                          No tasks are assigned to you in this plan.
+                        </p>
+                      )}
+                    {draft.tasks.map((task, index) => {
+                      if (readOnly && mineOnly && task.ownerId !== viewerId)
+                        return null;
+                      const status = (
+                        <span
+                          className={`status-label ${task.tracked ? "bg-blue-50 text-blue-800" : "bg-gray-100 text-gray-600"}`}
+                        >
+                          {task.tracked ? "Tracked" : "Untracked"}
+                        </span>
+                      );
+                      const body = (
+                        <>
+                        {readOnly ? (
                           <dl className="plan-task-summary">
                             {task.description &&
                               task.description !== task.title && (
@@ -968,8 +1016,60 @@ function PlanEditor({
                             )}
                           </div>
                         )}
-                      </section>
-                    ))}
+                        </>
+                      );
+                      if (!readOnly)
+                        return (
+                          <section
+                            key={task.id}
+                            aria-labelledby={`task-${task.id}`}
+                            className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6"
+                          >
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                              <h2
+                                id={`task-${task.id}`}
+                                className="text-lg font-semibold"
+                              >
+                                {index + 1}. {task.title || "Untitled task"}
+                              </h2>
+                              {status}
+                            </div>
+                            {body}
+                          </section>
+                        );
+                      const open = draft.checkpoints
+                        .filter((c) => c.taskId === task.id && c.status !== "met")
+                        .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt));
+                      const checkpointCount = draft.checkpoints.filter(
+                        (c) => c.taskId === task.id,
+                      ).length;
+                      return (
+                        <details key={task.id} className="plan-task">
+                          <summary>
+                            <span className="plan-task-title">
+                              <h2 id={`task-${task.id}`}>
+                                {task.title || "Untitled task"}
+                              </h2>
+                              <span className="plan-task-meta">
+                                {nameOf(task.ownerId)}
+                                {task.ownerId === viewerId && " (you)"}
+                                {" · "}
+                                {!task.tracked
+                                  ? "No checkpoints"
+                                  : open.length
+                                    ? `Next due ${new Date(open[0].dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+                                    : checkpointCount
+                                      ? "All checkpoints met"
+                                      : "No checkpoints yet"}
+                              </span>
+                            </span>
+                            {status}
+                            <Icon name="chevron" className="plan-task-chevron" />
+                          </summary>
+                          <div className="plan-task-body">{body}</div>
+                        </details>
+                      );
+                    })}
                     {(!saved.active || proposing) && (
                       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                         <button

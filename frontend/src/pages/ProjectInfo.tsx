@@ -4,6 +4,7 @@ import { api, type TaskEdit } from "../api/client";
 import { useProject } from "../App";
 import { EmptyState } from "../components/Enforcer";
 import { ErrorState, LoadingState } from "../components/PageFeedback";
+import { isDemoMode } from "../demo";
 
 const points = [1, 2, 3, 5, 8, 13] as const;
 
@@ -160,12 +161,16 @@ export default function ProjectInfo() {
           <ul className="supporting-copy">
             {project.members.map((member) => <li key={member.id}>{member.name} (@{member.githubUsername})</li>)}
           </ul>
+          {isDemoMode() ? (
+            <p className="supporting-copy" style={{ marginTop: 16 }}>The demo team is fixed. Sign in with your own account to add teammates to a group.</p>
+          ) : (<>
           <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
             <label className="supporting-copy">Name<input required value={memberName} onChange={(event) => setMemberName(event.target.value)} /></label>
             <label className="supporting-copy">GitHub username<input required value={memberGithub} onChange={(event) => setMemberGithub(event.target.value)} placeholder="octocat" /></label>
             <label className="supporting-copy">Email (optional)<input type="email" value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} /></label>
           </div>
           <button type="submit" className="btn btn-secondary" style={{ marginTop: 16 }}>Add teammate</button>
+          </>)}
         </form>
       </>}
     </div>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, type GroupSummary } from "../api/client";
 import { useProject } from "../App";
 import { ErrorState, LoadingState } from "../components/PageFeedback";
+import { isDemoMode } from "../demo";
 
 const inputClass = "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
@@ -65,6 +66,9 @@ export default function Groups() {
     }
   }
 
+  // The demo has no account: it shows the demo project only, without join / create / add teammate.
+  const demo = isDemoMode();
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -75,9 +79,14 @@ export default function Groups() {
             Open a group you already belong to, join one with its invite code, or create a new one.
           </p>
         </div>
-        <button type="button" onClick={() => { setProject(null); navigate("/setup"); }} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">Create a group</button>
+        {!demo && <button type="button" onClick={() => { setProject(null); navigate("/setup"); }} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">Create a group</button>}
       </header>
 
+      {demo ? (
+        <p className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
+          In the demo you&apos;re in the PayLite sample group. Sign in with your own account to create groups, join one with an invite code, or add teammates.
+        </p>
+      ) : (
       <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
         <h2 className="text-base font-semibold">Join a group</h2>
         <p className="mt-1 text-sm text-gray-600">Use the invite code from a teammate and the GitHub username they entered for you.</p>
@@ -94,6 +103,7 @@ export default function Groups() {
         </form>
         {joinError && <p role="alert" className="mt-3 text-sm text-red-800">{joinError}</p>}
       </section>
+      )}
 
       {loading ? <LoadingState message="Loading your groups…" /> : error ? <ErrorState title="Could not load your groups" onRetry={() => setAttempt((n) => n + 1)}><p>{error}</p></ErrorState> : groups.length === 0 ? (
         <p className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600">You are not in a group yet. Create one, or join with an invite code.</p>
@@ -115,7 +125,7 @@ export default function Groups() {
                 <button type="button" disabled={!!openingId || joining} onClick={() => { void openGroup(group.id); }} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
                   {openingId === group.id ? "Opening…" : "Open"}
                 </button>
-                <AddTeammate group={group} />
+                {!demo && <AddTeammate group={group} />}
               </li>
             );
           })}

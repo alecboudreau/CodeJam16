@@ -99,7 +99,7 @@ Key design choices:
 
 ## 5. The 5-minute script
 
-**Easiest way: the Demo guide.** In `/demo`, a *Demo guide* panel sits bottom-right. Each step shows what to say and has one button that switches person and page and does the action: reset, the contract, **Play Sunday … Play Saturday** (one simulated day per click; days with AI calls take 10–30 s, so keep talking), Sam's Inbox, Blocked → Alex, Run a check-in, Jordan's dashboard, assign the unknown identity, the dispute (alerted → met), the compute meter, the status report, close. Back and Skip only move the guide. **Reset demo** (banner) also restarts the guide.
+**Easiest way: the Demo guide (about 3 minutes).** Open `/demo`; the *Demo guide* panel sits bottom-right. Press **Start over** before you begin talking. Then for each step, read the one or two plain sentences and press the button: Show the contract → **Next day: Sunday … Saturday** (one click per day, a few seconds each on the live site) → Sam presses Blocked (also re-checks: Alex gets nudged) → Show Jordan's page (links his laptop commits) → Jordan disputes (late → done) → Show the cost → Finish. Back and Skip only move the guide. The banner's **Reset demo** also restarts the guide.
 
 The table below is the same story if you'd rather drive by hand.
 

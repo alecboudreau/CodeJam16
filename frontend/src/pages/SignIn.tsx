@@ -45,7 +45,7 @@ export default function SignIn() {
       <aside className="auth-story">
         <a href="/" className="brand-lockup">
           <span className="brand-symbol">
-            <Icon name="check" />
+            <img src="/brand/mark.svg?v=4" width="40" height="40" alt="" />
           </span>
           Enforcer
         </a>

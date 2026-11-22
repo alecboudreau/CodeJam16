@@ -173,7 +173,7 @@ The interface is flat. Background tone, white surfaces, fine borders and whitesp
 
 ## Shapes
 
-Working panels and cards use the panel radius; primary, secondary and navigation controls use the control radius. Utility-built fields retain the slightly rounder field radius. Status labels use small corners rather than large pills. Progress tracks are slim with almost square corners. Circular member initials are a specific identity device. The brand symbol has a small asymmetric lower corner, rather than changing the shape of the wider component system.
+Working panels and cards use the panel radius; primary, secondary and navigation controls use the control radius. Utility-built fields retain the slightly rounder field radius. Status labels use small corners rather than large pills. Progress tracks are slim with almost square corners. Circular member initials are a specific identity device. The brand symbol is a rounded brown square containing only low, wide symmetrical white horns and an open semicircular white nose ring, sourced from `public/brand/mark.svg`. Use that same mark for the website corner, sign-in brand, favicon and install icons. Checkmarks remain functional completion icons, not the brand logo.
 
 ## Components
 

@@ -377,7 +377,7 @@ function AppShell() {
           aria-label="Enforcer groups"
         >
           <span className="brand-symbol">
-            <Icon name="check" />
+            <img src="/brand/mark.svg?v=4" width="40" height="40" alt="" />
           </span>
           <span>
             Enforcer

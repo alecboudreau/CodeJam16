@@ -186,6 +186,10 @@ async function rowToProject(r: Row): Promise<Project> {
   };
 }
 
+export async function setProjectDeadline(projectId: string, deadline: string): Promise<void> {
+  await dbRun("UPDATE projects SET deadline = ? WHERE id = ?", deadline, projectId);
+}
+
 export async function getProject(projectId: string): Promise<Project | undefined> {
   const r = await dbGet("SELECT * FROM projects WHERE id = ?", projectId);
   return r ? rowToProject(r) : undefined;

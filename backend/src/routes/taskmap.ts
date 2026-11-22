@@ -1,5 +1,6 @@
 // Plan routes (owner: Person A). README §2.1, §2.2, §7.
 import { Router, type RequestHandler } from "express";
+import { z } from "zod";
 import { AgreeBody, PutTaskMapBody } from "@enforcer/shared";
 import type { Checkpoint, Member, PlanDraft, PlanItemRef, Task, TaskMap } from "@enforcer/shared";
 import { rules } from "../config";
@@ -12,6 +13,7 @@ import {
   getCheckpoint,
   getProject,
   getProjectPlanState,
+  setProjectDeadline,
   getTasks,
   getTask,
   newId,
@@ -20,6 +22,7 @@ import {
   upsertCheckpoint,
   upsertTask,
 } from "../db/db";
+import { isDemoProject } from "../demo/mode";
 import { callBig } from "../llm/client";
 import { buildPlanPrompt, planSchemaFor } from "../llm/prompts/taskmap";
 
@@ -431,4 +434,78 @@ taskmapRouter.post("/projects/:id/taskmap/agree", asyncRoute(async (req, res) =>
     return await buildTaskMap(projectId);
   });
   if (result) res.json(result);
+}));
+
+const effortPoints = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(5), z.literal(8), z.literal(13)]);
+const TaskEditBody = z.object({
+  title: z.string().trim().min(1),
+  description: z.string(),
+  points: effortPoints,
+  ownerId: z.string().min(1),
+  paths: z.array(z.string().trim().min(1)).default([]),
+  tracked: z.boolean(),
+});
+const WhenBody = z.object({
+  at: z.string().refine((value) => Number.isFinite(Date.parse(value)), "Enter a valid date"),
+});
+
+function refuseDemo(projectId: string, res: { status: (code: number) => { json: (body: unknown) => void } }): boolean {
+  if (!isDemoProject(projectId)) return false;
+  res.status(403).json({ error: "The demo project's plan can't be changed." });
+  return true;
+}
+
+// Immediate edits from Project info. These apply now; they do not wait for another round of approvals.
+taskmapRouter.put("/projects/:id/deadline", asyncRoute(async (req, res) => {
+  if (refuseDemo(req.params.id, res)) return;
+  const project = await getProject(req.params.id);
+  if (!project) { res.status(404).json({ error: "project not found" }); return; }
+  const { at } = WhenBody.parse(req.body);
+  await setProjectDeadline(project.id, new Date(at).toISOString());
+  res.json(await getProject(project.id));
+}));
+
+taskmapRouter.post("/projects/:id/tasks", asyncRoute(async (req, res) => {
+  if (refuseDemo(req.params.id, res)) return;
+  const project = await getProject(req.params.id);
+  if (!project) { res.status(404).json({ error: "project not found" }); return; }
+  const body = TaskEditBody.parse(req.body);
+  if (!project.members.some((member) => member.id === body.ownerId)) {
+    res.status(400).json({ error: "Choose a teammate on this project." });
+    return;
+  }
+  const task: Task = {
+    id: newId(), title: body.title, description: body.description, points: body.points, ownerId: body.ownerId,
+    paths: body.paths, tracked: body.tracked, dependsOn: [], completion: 0, approvedBy: [body.ownerId],
+  };
+  await upsertTask(project.id, task);
+  res.status(201).json(await buildTaskMap(project.id));
+}));
+
+taskmapRouter.put("/projects/:id/tasks/:taskId", asyncRoute(async (req, res) => {
+  if (refuseDemo(req.params.id, res)) return;
+  const project = await getProject(req.params.id);
+  const owned = await dbGet("SELECT project_id FROM tasks WHERE id = ?", req.params.taskId);
+  const existing = owned?.project_id === req.params.id ? await getTask(req.params.taskId) : undefined;
+  if (!project || !existing) { res.status(404).json({ error: "task not found" }); return; }
+  const body = TaskEditBody.parse(req.body);
+  if (!project.members.some((member) => member.id === body.ownerId)) {
+    res.status(400).json({ error: "Choose a teammate on this project." });
+    return;
+  }
+  await upsertTask(project.id, {
+    ...existing, title: body.title, description: body.description, points: body.points, ownerId: body.ownerId,
+    paths: body.paths, tracked: body.tracked, approvedBy: [body.ownerId],
+  });
+  res.json(await buildTaskMap(project.id));
+}));
+
+taskmapRouter.put("/projects/:id/checkpoints/:checkpointId", asyncRoute(async (req, res) => {
+  if (refuseDemo(req.params.id, res)) return;
+  const owned = await dbGet("SELECT project_id FROM checkpoints WHERE id = ?", req.params.checkpointId);
+  const existing = owned?.project_id === req.params.id ? await getCheckpoint(req.params.checkpointId) : undefined;
+  if (!existing) { res.status(404).json({ error: "checkpoint not found" }); return; }
+  const { at } = WhenBody.parse(req.body);
+  await upsertCheckpoint(req.params.id, { ...existing, dueAt: new Date(at).toISOString() });
+  res.json(await buildTaskMap(req.params.id));
 }));

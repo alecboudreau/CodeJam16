@@ -23,3 +23,5 @@ Some notes of stuff to add etc.
 -add a project menu where you would add teamtaes and add info about project.
 
 -reallocation of tasks. splitting up more if more people.
+
+-a section for a general of what YOU have to do.

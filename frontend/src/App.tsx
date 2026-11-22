@@ -371,13 +371,13 @@ function AppShell() {
         <Link
           to="/groups"
           className="brand-lockup"
-          aria-label="The Enforcer groups"
+          aria-label="Enforcer groups"
         >
           <span className="brand-symbol">
             <Icon name="check" />
           </span>
           <span>
-            The Enforcer
+            Enforcer
             <span className="brand-caption">Make progress together.</span>
           </span>
         </Link>
@@ -461,7 +461,7 @@ function AppShell() {
             <span className="topbar-slash" aria-hidden="true">
               /
             </span>
-            <span className="mobile-brand">The Enforcer</span>
+            <span className="mobile-brand">Enforcer</span>
             <span className="topbar-route">
               {links.find(([to]) => to === location.pathname)?.[1] ??
                 "Page not found"}
@@ -595,7 +595,7 @@ function AppShell() {
         </main>
         <footer className="workspace-footer">
           <span>Make the plan. Keep the promise.</span>
-          <span>The Enforcer</span>
+          <span>Enforcer</span>
         </footer>
       </div>
     </div>

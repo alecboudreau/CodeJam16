@@ -47,7 +47,7 @@ export default function SignIn() {
           <span className="brand-symbol">
             <Icon name="check" />
           </span>
-          The Enforcer
+          Enforcer
         </a>
         <div className="auth-story-content">
           <Enforcer size="large" />

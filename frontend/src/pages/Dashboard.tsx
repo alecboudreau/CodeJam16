@@ -27,7 +27,7 @@ export default function Dashboard() {
         </header>
         <EmptyState
           title="Give the work a direction."
-          action={{ to: "/setup", label: "Set up your project" }}
+          action={{ to: "/groups", label: "Go to your groups" }}
         >
           <p>
             Add your team, requirements, and deadline. Then build a plan
@@ -240,9 +240,9 @@ function ProjectDashboard({
           <>
             {!data.project.planActive && (
               <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
-                The plan is awaiting agreement. Review and approve items in the{" "}
+                The team contract is waiting for signatures. Read and sign your part in the{" "}
                 <Link to="/taskmap" className="font-medium underline">
-                  task map
+                  team contract
                 </Link>
                 .
               </p>
@@ -308,7 +308,7 @@ function ProjectDashboard({
                     <p className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
                       No tasks yet. Generate a plan in{" "}
                       <Link to="/setup" className="text-blue-700 underline">
-                        Setup
+                        group setup
                       </Link>
                       .
                     </p>

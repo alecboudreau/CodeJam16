@@ -109,7 +109,7 @@ export default function Trace() {
         </header>
         <EmptyState
           title="Nothing to check. Yet."
-          action={{ to: "/setup", label: "Set up a project" }}
+          action={{ to: "/groups", label: "Go to your groups" }}
         >
           <p>
             Create a project and agree on a plan. Each check-in will show how
@@ -358,9 +358,9 @@ function ProjectTrace({
       </header>
       {!project.planActive && (
         <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
-          Approve the plan in the{" "}
+          Everyone needs to sign the{" "}
           <Link to="/taskmap" className="underline">
-            task map
+            team contract
           </Link>{" "}
           before running a check-in.
         </p>

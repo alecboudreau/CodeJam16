@@ -84,12 +84,12 @@ export default function TaskMap() {
     return (
       <div className="page-stack">
         <header className="page-heading">
-          <h1>Task map</h1>
+          <h1>Team contract</h1>
           <p>Make the agreement clear before the work begins.</p>
         </header>
         <EmptyState
           title="Start with a plan worth keeping."
-          action={{ to: "/setup", label: "Set up a project" }}
+          action={{ to: "/groups", label: "Go to your groups" }}
         >
           <p>
             Add your requirements and team. Everyone will review their own tasks
@@ -112,6 +112,8 @@ function PlanEditor({
   const [saved, setSaved] = useState<Plan | null>(null);
   const [draft, setDraft] = useState<Plan | null>(null);
   const [proposing, setProposing] = useState(false);
+  // The contract view is the default; the full editor opens only to suggest a change.
+  const [editing, setEditing] = useState(false);
   const [mineOnly, setMineOnly] = useState(false);
   const [suggestion, setSuggestion] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -205,13 +207,13 @@ function PlanEditor({
     setProposing(!!plan.pending);
     setNotice(
       plan.pending
-        ? `${message} The current plan remains active while approvals are collected.`
+        ? `${message} The current contract stays in effect until everyone signs.`
         : plan.active && saved?.pending && plan.version > saved.version
-          ? `The approved change is now active as plan version ${plan.version}.`
+          ? `Everyone signed the change. It's now part of the contract (version ${plan.version}).`
           : plan.active && saved?.pending
             ? "The server returned no pending change. The current plan remains active."
             : plan.active && !saved?.active
-              ? "All approvals received. Your plan is active."
+              ? "Everyone has signed. The contract is live."
               : message,
     );
     setProject({
@@ -299,9 +301,10 @@ function PlanEditor({
       accept(
         plan,
         saved?.active
-          ? "Proposed change saved. Only changed items need new approvals."
-          : "Changes saved. Only changed items need new approvals.",
+          ? "Change proposed. Whoever it affects needs to sign it."
+          : "Changes saved. Anyone whose part changed needs to sign again.",
       );
+      if (mounted.current) setEditing(false);
       if (withdrawn)
         setNotice(
           "Proposed change withdrawn. The current plan remains active.",
@@ -352,6 +355,23 @@ function PlanEditor({
     }
   }
 
+  // Signs everything waiting on the viewer (their tasks, their checkpoints, shared items, team rules).
+  async function signAll() {
+    if (!viewerId || busy || mutating.current) return;
+    mutating.current = true;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      accept(await api.agree(project.id, undefined, viewerId), "You signed your part.");
+    } catch (error: unknown) {
+      if (mounted.current) setError(error instanceof Error ? error.message : "Could not record your signature.");
+    } finally {
+      mutating.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
+
   function approval(
     item: PlanItemRef,
     ownerId: string | null,
@@ -393,11 +413,12 @@ function PlanEditor({
       <header className="page-heading">
         <div>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            Task map
+            {editing ? "Suggest a change" : "Team contract"}
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Review the work, checkpoints, and grace period together before
-            agreeing.
+            {editing
+              ? "Edit tasks, checkpoints or team rules. Anyone whose part changes signs again."
+              : `What everyone on ${project.name} promises to deliver by ${new Date(project.deadline).toLocaleDateString(undefined, { month: "long", day: "numeric" })}.`}
           </p>
         </div>
         <button
@@ -409,7 +430,7 @@ function PlanEditor({
             setAttempt((n) => n + 1);
           }}
         >
-          Refresh plan
+          Refresh
         </button>
       </header>
       {loading ? (
@@ -434,8 +455,43 @@ function PlanEditor({
             >
               Retry loading plan
             </button>
+          ) : !editing && saved.tasks.length > 0 ? (
+            <ContractView
+              plan={saved}
+              project={project}
+              viewerId={viewerId}
+              busy={busy}
+              notice={notice}
+              onSign={signAll}
+              onSuggest={() => {
+                setDraft(editingCopy(saved));
+                setProposing(saved.active);
+                setEditing(true);
+                setError("");
+                setNotice("");
+              }}
+            />
           ) : (
             <>
+              {editing && (
+                <div className="plan-actions">
+                  <button
+                    type="button"
+                    className={buttonClass}
+                    disabled={busy || dirty}
+                    onClick={() => {
+                      setDraft(editingCopy(saved));
+                      setProposing(!!saved.pending);
+                      setEditing(false);
+                      setError("");
+                      setNotice("");
+                    }}
+                  >
+                    Back to the contract
+                  </button>
+                  <p>{dirty ? "Save or discard your changes first." : "Nothing changes until you save."}</p>
+                </div>
+              )}
               <AgreeBar plan={saved} members={project.members} />
               {saved.pending && (
                 <AgreeBar
@@ -502,7 +558,7 @@ function PlanEditor({
                   There is no draft yet. Upload your specification and generate
                   a plan in{" "}
                   <Link to="/setup" className="text-blue-700 underline">
-                    Setup
+                    group setup
                   </Link>
                   .
                 </p>
@@ -1105,13 +1161,14 @@ function PlanEditor({
                             disabled={busy || dirty}
                             className={buttonClass}
                             onClick={() => {
-                              setDraft(structuredClone(saved));
-                              setProposing(false);
+                              setDraft(editingCopy(saved));
+                              setProposing(!!saved.pending);
+                              setEditing(false);
                               setError("");
                               setNotice("");
                             }}
                           >
-                            View current plan
+                            Back to the contract
                           </button>
                         )}
                         <span className="text-sm text-gray-500">
@@ -1128,6 +1185,251 @@ function PlanEditor({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+const checkpointStatus: Record<Checkpoint["status"], string> = {
+  pending: "",
+  met: "Met",
+  missed: "Missed",
+  alerted: "Missed · team told",
+};
+
+/** The plan, read as an agreement: what each person promises, who has signed, and the team rules. */
+function ContractView({
+  plan,
+  project,
+  viewerId,
+  busy,
+  notice,
+  onSign,
+  onSuggest,
+}: {
+  plan: Plan;
+  project: Project;
+  viewerId: string;
+  busy: boolean;
+  notice: string;
+  onSign: () => void;
+  onSuggest: () => void;
+}) {
+  const members = project.members;
+  const live = plan.active && !plan.pending;
+  // While a change waits for signatures, show the proposed terms and mark what differs from the live ones.
+  const terms = plan.pending ? { ...plan, ...plan.pending } : plan;
+  const liveTask = (id: string) => plan.tasks.find((t) => t.id === id);
+  const liveCheckpoint = (id: string) => plan.checkpoints.find((c) => c.id === id);
+  const taskChanged = (t: Task) => {
+    const old = liveTask(t.id);
+    return !!plan.pending && (!old || old.title !== t.title || old.description !== t.description || old.points !== t.points || old.ownerId !== t.ownerId || old.tracked !== t.tracked);
+  };
+  const checkpointChanged = (c: Checkpoint) => {
+    const old = liveCheckpoint(c.id);
+    return !!plan.pending && (!old || old.criteria !== c.criteria || Date.parse(old.dueAt) !== Date.parse(c.dueAt) || old.targetCompletion !== c.targetCompletion || old.ownerId !== c.ownerId);
+  };
+  const graceChanged = !!plan.pending && plan.pending.gracePeriodHours !== plan.gracePeriodHours;
+  const hasSigned = (id: string) => !plan.waitingOn.some((w) => w.memberIds.includes(id));
+  const signedCount = members.filter((m) => hasSigned(m.id)).length;
+  const viewerMustSign = !!viewerId && !live && !hasSigned(viewerId);
+  const step = live ? 3 : 2;
+  const titleOf = (id: string) => terms.tasks.find((t) => t.id === id)?.title ?? "another task";
+  const untracked = terms.tasks.filter((t) => !t.tracked);
+  const ordered = [...members].sort((a, b) => (a.id === viewerId ? -1 : b.id === viewerId ? 1 : 0));
+  const remaining = members.length - signedCount;
+
+  return (
+    <div className="contract">
+      <section className="contract-status" aria-labelledby="contract-status-title">
+        <div>
+          <p className="contract-eyebrow">
+            {live
+              ? `Live · version ${plan.version}`
+              : plan.pending
+                ? "A change to the contract is waiting for signatures"
+                : "Draft · not live until everyone signs"}
+          </p>
+          <h2 id="contract-status-title">
+            {live
+              ? "Everyone has signed. The contract is live."
+              : viewerMustSign
+                ? "Read your part, then sign."
+                : `Waiting for ${remaining} more ${remaining === 1 ? "signature" : "signatures"}.`}
+          </h2>
+          <ol className="contract-steps">
+            {[
+              "Read what each person promises to deliver, and by when.",
+              "Everyone signs their own part and the team rules.",
+              "Once everyone has signed, Enforcer checks progress at each checkpoint and nudges privately if one slips.",
+            ].map((text, i) => (
+              <li key={text} className={i + 1 < step ? "is-done" : i + 1 === step ? "is-current" : ""}>
+                <span aria-hidden="true">{i + 1 < step ? <Icon name="check" /> : i + 1}</span>
+                {text}
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="contract-signatures" aria-label="Signatures">
+          <p>
+            <strong>
+              {signedCount} of {members.length}
+            </strong>{" "}
+            signed{plan.pending ? " the change" : ""}
+          </p>
+          <ul>
+            {members.map((m) => (
+              <li key={m.id} className={hasSigned(m.id) ? "is-signed" : ""}>
+                <span aria-hidden="true">{hasSigned(m.id) && <Icon name="check" />}</span>
+                {m.name}
+                {m.id === viewerId && " (you)"}
+                <em>{hasSigned(m.id) ? "signed" : "waiting"}</em>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {notice && (
+        <p role="status" className="contract-notice">
+          {notice}
+        </p>
+      )}
+      {plan.pending && (
+        <p className="contract-proposal-note">
+          Below is the contract <strong>with the proposed change</strong>. Changed items are marked. Until everyone signs,
+          the current version stays in effect.
+        </p>
+      )}
+
+      {ordered.map((m) => {
+        const tasks = terms.tasks.filter((t) => t.ownerId === m.id);
+        const mine = m.id === viewerId;
+        return (
+          <section key={m.id} className={`contract-party ${mine ? "is-mine" : ""}`} aria-labelledby={`party-${m.id}`}>
+            <header>
+              <h2 id={`party-${m.id}`}>
+                {m.name}
+                {mine && <span className="contract-you">you</span>} promises to deliver
+              </h2>
+              {!live && (
+                <span className={`contract-badge ${hasSigned(m.id) ? "is-signed" : ""}`}>
+                  {hasSigned(m.id) ? "Signed" : "Not signed yet"}
+                </span>
+              )}
+            </header>
+            {tasks.length === 0 ? (
+              <p className="contract-empty">No tasks assigned.</p>
+            ) : (
+              <ol className="contract-tasks">
+                {tasks.map((task) => {
+                  const checkpoints = terms.checkpoints
+                    .filter((c) => c.taskId === task.id)
+                    .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt));
+                  return (
+                    <li key={task.id} className="contract-task">
+                      <div className="contract-task-head">
+                        <h3>
+                          {task.title}
+                          {taskChanged(task) && <span className="contract-changed">{liveTask(task.id) ? "Changed" : "New"}</span>}
+                        </h3>
+                        <span>
+                          {task.points} {task.points === 1 ? "point" : "points"} of effort
+                          {plan.active && task.tracked && ` · ${Math.round(task.completion * 100)}% done`}
+                        </span>
+                      </div>
+                      {task.description && task.description !== task.title && (
+                        <p className="contract-task-desc">{task.description}</p>
+                      )}
+                      {task.dependsOn.length > 0 && (
+                        <p className="contract-task-note">Starts after: {task.dependsOn.map(titleOf).join(", ")}</p>
+                      )}
+                      {task.tracked ? (
+                        <ul className="contract-checkpoints" aria-label={`Checkpoints for ${task.title}`}>
+                          {checkpoints.map((c) => (
+                            <li key={c.id}>
+                              <time dateTime={c.dueAt}>{shortDate(c.dueAt)}</time>
+                              <span>
+                                {c.criteria}
+                                {checkpointChanged(c) && (
+                                  <span className="contract-changed">{liveCheckpoint(c.id) ? "Changed" : "New"}</span>
+                                )}
+                                <small>
+                                  {c.targetCompletion >= 1
+                                    ? "Task finished by then"
+                                    : `About ${Math.round(c.targetCompletion * 100)}% of the task done by then`}
+                                  {c.ownerId === null && " · the whole team signs this one"}
+                                </small>
+                              </span>
+                              {checkpointStatus[c.status] && (
+                                <b className={`contract-cp-status is-${c.status}`}>{checkpointStatus[c.status]}</b>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="contract-task-note">
+                          No checkpoints: this is not code, so Enforcer won&apos;t check it or send reminders.
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </section>
+        );
+      })}
+
+      <section className="contract-party contract-rules" aria-labelledby="contract-rules">
+        <header>
+          <h2 id="contract-rules">Team rules</h2>
+          {!live && <span className="contract-badge">Everyone signs</span>}
+        </header>
+        <ul>
+          <li>
+            <strong>{terms.gracePeriodHours}-hour grace period.</strong> If someone misses a checkpoint, they get{" "}
+            {terms.gracePeriodHours} hours to catch up before the team is told.
+            {graceChanged && <span className="contract-changed">Changed · was {plan.gracePeriodHours} hours</span>}
+          </li>
+          <li>
+            <strong>Private nudges.</strong> Reminders go only to the person whose checkpoint is due, and teammates are
+            never compared.
+          </li>
+          {untracked.length > 0 && (
+            <li>
+              <strong>Not tracked:</strong> {untracked.map((t) => t.title).join(", ")}. Still part of the deal, but with
+              no checkpoints or reminders.
+            </li>
+          )}
+        </ul>
+      </section>
+
+      <div className="contract-actions">
+        {viewerMustSign ? (
+          <>
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={onSign}>
+              {busy ? "Signing…" : plan.pending ? "Sign the change" : "Sign my part"}
+            </button>
+            <p>
+              Signing means you agree to your tasks and checkpoints, the checkpoints the whole team shares, and the team
+              rules.
+            </p>
+          </>
+        ) : (
+          <p>
+            {live
+              ? "This contract stays in effect until the team signs a change."
+              : viewerId
+                ? "You've signed. The contract goes live once everyone else has too."
+                : "Choose who you are to sign."}
+          </p>
+        )}
+        <button type="button" className="btn btn-secondary" disabled={busy || !viewerId} onClick={onSuggest}>
+          {plan.pending ? "Review the proposed change" : "Suggest a change"}
+        </button>
+      </div>
     </div>
   );
 }

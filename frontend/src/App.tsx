@@ -51,11 +51,10 @@ const links = [
   ["/groups", "Groups", "shield"],
   ["/project", "Project info", "info"],
   ["/dashboard", "Dashboard", "dashboard"],
-  ["/taskmap", "Task map", "plan"],
+  ["/taskmap", "Team contract", "plan"],
   ["/inbox", "Inbox", "inbox"],
   ["/trace", "Agent trace", "trace"],
   ["/report", "Status report", "report"],
-  ["/setup", "Project setup", "setup"],
 ] as const;
 
 interface ProjectContextValue {
@@ -467,8 +466,10 @@ function AppShell() {
             </span>
             <span className="mobile-brand">Enforcer</span>
             <span className="topbar-route">
-              {links.find(([to]) => to === location.pathname)?.[1] ??
-                "Page not found"}
+              {location.pathname === "/setup"
+                ? "Create a group"
+                : (links.find(([to]) => to === location.pathname)?.[1] ??
+                  "Page not found")}
             </span>
             {useMocks && <span className="demo-data-label">Sample data</span>}
           </div>

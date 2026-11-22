@@ -461,8 +461,8 @@
   padding: 30px 10px 22px;
 }
 .rail-steward .enforcer-art {
-  width: 64px;
-  height: 96px;
+  width: 84px;
+  height: 126px;
   margin-bottom: 14px;
 }
 .rail-steward p {
@@ -636,8 +636,8 @@
 }
 .enforcer-note > .enforcer-art {
   flex: 0 0 auto;
-  width: 130px;
-  height: 195px;
+  width: 170px;
+  height: 255px;
   align-self: end;
   margin-block: -12px -22px;
 }
@@ -800,8 +800,8 @@
   border-radius: 12px;
 }
 .empty-state > .enforcer-art {
-  width: 140px;
-  height: 210px;
+  width: 200px;
+  height: 300px;
   flex: 0 0 auto;
 }
 .empty-state h2 {
@@ -846,8 +846,8 @@
 }
 .loading-state .enforcer-art,
 .error-state .enforcer-art {
-  width: 64px;
-  height: 96px;
+  width: 96px;
+  height: 144px;
   flex: 0 0 auto;
 }
 .loading-copy {
@@ -895,8 +895,8 @@
   border-radius: 12px;
 }
 .setup-guide .enforcer-art {
-  width: 110px;
-  height: 165px;
+  width: 150px;
+  height: 225px;
   margin: 0 auto 24px;
 }
 .setup-guide h2 {
@@ -1005,8 +1005,8 @@
   padding: 35px 0;
 }
 .auth-story-content .enforcer-art {
-  width: 200px;
-  height: 300px;
+  width: 260px;
+  height: 390px;
   margin: 0 auto 32px;
 }
 .auth-story h2 {
@@ -1091,8 +1091,8 @@
   background: var(--surface);
 }
 .plan-progress .enforcer-art {
-  width: 112px;
-  height: 168px;
+  width: 150px;
+  height: 225px;
   flex: 0 0 auto;
   animation: working 1.6s ease-in-out infinite alternate;
 }
@@ -1186,8 +1186,8 @@
     padding: 20px;
   }
   .plan-progress .enforcer-art {
-    width: 64px;
-    height: 96px;
+    width: 96px;
+    height: 144px;
   }
 }
 /* Team contract (task map read view) */
@@ -1568,8 +1568,8 @@
     padding: 24px;
   }
   .enforcer-note > .enforcer-art {
-    width: 104px;
-    height: 156px;
+    width: 136px;
+    height: 204px;
   }
 }
 @media (max-width: 959px) {
@@ -1683,8 +1683,8 @@
     font-size: 0.8125rem;
   }
   .enforcer-note > .enforcer-art {
-    width: 86px;
-    height: 129px;
+    width: 112px;
+    height: 168px;
     margin-bottom: -24px;
     align-self: center;
   }
@@ -1722,8 +1722,8 @@
     padding: 28px;
   }
   .empty-state > .enforcer-art {
-    width: 104px;
-    height: 156px;
+    width: 140px;
+    height: 210px;
   }
   .empty-state h2 {
     font-size: 1.375rem;

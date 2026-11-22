@@ -3,7 +3,7 @@ import type {
   PlanDraft, Project, Report, Task, TaskMap, TraceStep,
 } from "@enforcer/shared";
 import { AgreeBody, PutTaskMapBody } from "@enforcer/shared";
-import type { CreateProjectInput, DisputeInput, InboxData, InboxItem, StatusInput } from "./client";
+import type { CreateProjectInput, DisputeInput, GroupSummary, InboxData, InboxItem, StatusInput } from "./client";
 
 export const demoProjectId = "demo-payments";
 const at = "2026-11-20T18:00:00.000Z";
@@ -101,6 +101,21 @@ const demoInbox = [
 const states = new Map<string, MockState>();
 states.set(demoProjectId, structuredClone({ project: demoProject, plan: demoPlan, judgments, disputes: [], trace: demoTrace, meter: demoMeter, specText: "Demo payment app specification", inbox: demoInbox }));
 
+const inviteCodes = new Map<string, string>([[demoProjectId, "PAYLITE1"]]);
+function inviteFor(projectId: string): string {
+  const existing = inviteCodes.get(projectId);
+  if (existing) return existing;
+  const code = projectId.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase().padEnd(8, "X");
+  inviteCodes.set(projectId, code);
+  return code;
+}
+function groupSummary(project: Project): GroupSummary {
+  return {
+    id: project.id, name: project.name, planActive: project.planActive, deadline: project.deadline,
+    memberName: "", inviteCode: inviteFor(project.id),
+  };
+}
+
 function fail(message: string, status = 400): never {
   // Same error shape as the live wrapper, without a runtime import cycle.
   throw Object.assign(new Error(message), { name: "ApiError", status });
@@ -183,6 +198,18 @@ export async function mockRequest(method: string, path: string, body?: unknown):
 
   async function dispatch(): Promise<unknown> {
     if (method === "POST" && url.pathname === "/webhook/github") return undefined;
+    if (method === "GET" && url.pathname === "/me/projects") return [...states.values()].map((state) => groupSummary(state.project));
+    if (method === "POST" && url.pathname === "/me/projects/join") {
+      const input = body as { code?: string; githubUsername?: string } | undefined;
+      const code = input?.code?.trim().toLowerCase() ?? "";
+      const login = input?.githubUsername?.trim().replace(/^@/, "").toLowerCase() ?? "";
+      const state = [...states.values()].find((item) => inviteFor(item.project.id).toLowerCase() === code);
+      if (!state) return fail("No group uses that invite code.", 404);
+      if (!state.project.members.some((member) => member.githubUsername.toLowerCase() === login || member.githubAliases.some((alias) => alias.toLowerCase() === login))) {
+        return fail("That GitHub username isn't on this group's team.", 404);
+      }
+      return state.project;
+    }
     if (method === "POST" && url.pathname === "/projects") {
       const input = body as CreateProjectInput;
       const project: Project = {

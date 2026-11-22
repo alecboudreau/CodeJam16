@@ -1,10 +1,54 @@
 // /api/projects, members, aliases (owner: Person A). README §7.
 import { Router } from "express";
+import { z } from "zod";
 import { AddAliasBody, CreateProjectBody } from "@enforcer/shared";
-import { addGithubAlias, getMemberProjectId, getProject, insertProject, setMemberDiscordId } from "../db/db";
+import { addGithubAlias, getMemberProjectId, getProject, insertProject, joinGroup, listGroups, setMemberDiscordId } from "../db/db";
 import { authEnabled } from "../auth/auth";
 
+const JoinGroupBody = z.object({
+  code: z.string().trim().min(1),
+  githubUsername: z.string().trim().min(1),
+});
+
 export const projectsRouter = Router();
+
+// GET /me/projects → groups the signed-in person belongs to.
+projectsRouter.get("/me/projects", async (req, res, next) => {
+  try {
+    if (!authEnabled()) {
+      res.json([]);
+      return;
+    }
+    const me = req.user;
+    if (!me) {
+      res.status(401).json({ error: "Sign in first." });
+      return;
+    }
+    res.json(await listGroups({ email: me.email, discordId: me.discordId }));
+  } catch (e) {
+    next(e);
+  }
+});
+
+// POST /me/projects/join { code, githubUsername } → Project
+projectsRouter.post("/me/projects/join", async (req, res, next) => {
+  try {
+    const body = JoinGroupBody.parse(req.body);
+    const me = authEnabled() ? req.user : null;
+    if (authEnabled() && !me) {
+      res.status(401).json({ error: "Sign in first." });
+      return;
+    }
+    const result = await joinGroup(body.code, body.githubUsername, me ? { email: me.email, discordId: me.discordId } : null);
+    if ("error" in result) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json(result.project);
+  } catch (e) {
+    next(e);
+  }
+});
 
 // POST /projects → Project
 projectsRouter.post("/projects", async (req, res, next) => {

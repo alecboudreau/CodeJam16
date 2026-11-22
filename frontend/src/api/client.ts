@@ -33,6 +33,15 @@ export interface InboxItem {
 export interface InboxData { forYou: InboxItem[]; team: InboxItem[]; unreadCount: number }
 export interface StatusInput { status: InboxStatus; blockedById?: string }
 
+export interface GroupSummary {
+  id: string;
+  name: string;
+  planActive: boolean;
+  deadline: string;
+  memberName: string;
+  inviteCode: string;
+}
+
 function readInbox(value: unknown): InboxData {
   const data = value as Partial<InboxData> | null;
   const item = (value: unknown): value is InboxItem => {
@@ -120,6 +129,8 @@ export const api = {
   resetDemo: () => request<{ projectId: string }>("POST", "/demo/reset"),
   getPresenterStatus: () => request<{ presenter: boolean }>("GET", "/demo/presenter"),
   getMe: (id: string) => request<Member>("GET", `${projectPath(id)}/me`),
+  listGroups: () => request<GroupSummary[]>("GET", "/me/projects"),
+  joinGroup: (input: { code: string; githubUsername: string }) => request<Project>("POST", "/me/projects/join", input),
   createProject: (input: CreateProjectInput) => request<Project>("POST", "/projects", input),
   getProject: (id: string) => request<Project>("GET", projectPath(id)),
   addAlias: (id: string, memberId: string, githubLogin: string) =>

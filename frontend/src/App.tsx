@@ -17,6 +17,7 @@ import Inbox, { useInbox } from "./pages/Inbox";
 import Groups from "./pages/Groups";
 
 const links = [
+  ["/groups", "Groups"],
   ["/setup", "Setup"],
   ["/taskmap", "Task map"],
   ["/dashboard", "Dashboard"],
@@ -175,7 +176,7 @@ function AppShell() {
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2">Skip to content</a>
       <header className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-6 lg:px-8">
-          <Link to="/dashboard" className="font-semibold tracking-tight">Group Project Enforcer</Link>
+          <Link to="/groups" className="font-semibold tracking-tight">Group Project Enforcer</Link>
           <div className="flex min-w-0 items-center gap-3 text-sm">{project && <span className="max-w-xs truncate text-gray-600" title={project.name}>Project: {project.name}</span>}{useMocks && <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">Demo data</span>}</div>
         </div>
       <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
@@ -200,7 +201,7 @@ function AppShell() {
       {isDemoMode() && <DemoBanner />}
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <PageErrorBoundary resetKey={`${location.pathname}:${project?.id ?? ""}:${viewerId}`}>
-        {projectLoading ? <LoadingState message="Loading your project…" /> : projectError ? <ErrorState title="Could not load your project" onRetry={retryProject} retryLabel="Retry project">
+        {location.pathname !== "/groups" && projectLoading ? <LoadingState message="Loading your project…" /> : location.pathname !== "/groups" && projectError ? <ErrorState title="Could not load your project" onRetry={retryProject} retryLabel="Retry project">
           <p>{projectError}</p><p>Your saved project could not be opened. Retry, or choose another starting point.</p>
           <div className="flex flex-wrap gap-3">{useMocks && <button type="button" className="rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium" onClick={openDemo}>Open demo project</button>}
             <button type="button" className="rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium" onClick={() => { setProject(null); navigate("/setup"); }}>Start a new project</button></div>

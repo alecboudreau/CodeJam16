@@ -1,7 +1,7 @@
 // Postgres (Supabase) helpers (owner: Person A). Row <-> shared-type mappers for every table (README §8, §9).
 // Every helper is async. Inside tx(...), helpers automatically run on that transaction's connection.
 import { AsyncLocalStorage } from "node:async_hooks";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -195,15 +195,137 @@ export async function listActiveProjectIds(): Promise<string[]> {
   return (await dbAll("SELECT id FROM projects WHERE plan_active = 1")).map((r) => r.id as string);
 }
 
+const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+export function newInviteCode(): string {
+  const bytes = randomBytes(8);
+  return [...bytes].map((byte) => INVITE_ALPHABET[byte % INVITE_ALPHABET.length]).join("");
+}
+
+function uniqueConstraint(error: unknown): string {
+  if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "23505") {
+    return "constraint_name" in error ? String((error as { constraint_name?: string }).constraint_name ?? "") : "unique";
+  }
+  return "";
+}
+
+/** Gives a project a short code teammates can use to join. Existing rows are filled in on first use. */
+export async function ensureInviteCode(projectId: string, existing?: string | null): Promise<string> {
+  if (existing) return existing;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = newInviteCode();
+    try {
+      const updated = await dbRun("UPDATE projects SET invite_code = ? WHERE id = ? AND invite_code IS NULL", code, projectId);
+      if (updated > 0) return code;
+      const row = await dbGet("SELECT invite_code FROM projects WHERE id = ?", projectId);
+      if (typeof row?.invite_code === "string" && row.invite_code) return row.invite_code;
+    } catch (error) {
+      if (!uniqueConstraint(error)) throw error;
+    }
+  }
+  throw new Error("Could not create an invite code");
+}
+
+export interface GroupSummary {
+  id: string;
+  name: string;
+  planActive: boolean;
+  deadline: string;
+  memberName: string;
+  inviteCode: string;
+}
+
+/**
+ * Groups this person belongs to, matched the same way as project membership: Discord account, then email.
+ * Pass null only when sign-in is off. That returns nothing, so a shared database is not listed to everyone.
+ */
+export async function listGroups(user: { email?: string; discordId?: string } | null): Promise<GroupSummary[]> {
+  if (!user) return [];
+  const discordId = user.discordId ?? "";
+  const email = user.email?.toLowerCase() ?? "";
+  const rows = await dbAll(
+    `SELECT p.id, p.name, p.plan_active, p.deadline, p.invite_code, p.created_at, m.name AS member_name, m.discord_id
+     FROM projects p
+     JOIN members m ON m.project_id = p.id
+     WHERE (? <> '' AND m.discord_id = ?)
+        OR (? <> '' AND m.email IS NOT NULL AND lower(m.email) = ?)
+     ORDER BY p.created_at DESC`,
+    discordId, discordId, email, email,
+  );
+  const chosen = new Map<string, Row>();
+  for (const row of rows) {
+    const id = row.id as string;
+    const previous = chosen.get(id);
+    if (!previous || (discordId && row.discord_id === discordId)) chosen.set(id, row);
+  }
+  const groups: GroupSummary[] = [];
+  for (const row of chosen.values()) {
+    groups.push({
+      id: row.id as string,
+      name: row.name as string,
+      planActive: bool(row.plan_active),
+      deadline: row.deadline as string,
+      memberName: (row.member_name as string) ?? "",
+      inviteCode: await ensureInviteCode(row.id as string, (row.invite_code as string | null) ?? null),
+    });
+  }
+  return groups;
+}
+
 export async function insertProject(
   p: { name: string; repos: string[]; deadline: string; members: MemberInput[] },
   id: string = newId(),
 ): Promise<Project> {
-  await tx(async () => {
-    await dbRun("INSERT INTO projects (id, name, repos, deadline, created_at) VALUES (?, ?, ?, ?, ?)", id, p.name, toJson(p.repos), p.deadline, nowIso());
-    for (const m of p.members) await insertMember(id, m);
-  });
-  return (await getProject(id))!;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = newInviteCode();
+    try {
+      await tx(async () => {
+        await dbRun(
+          "INSERT INTO projects (id, name, repos, deadline, created_at, invite_code) VALUES (?, ?, ?, ?, ?, ?)",
+          id, p.name, toJson(p.repos), p.deadline, nowIso(), code,
+        );
+        for (const m of p.members) await insertMember(id, m);
+      });
+      return (await getProject(id))!;
+    } catch (error) {
+      if (!uniqueConstraint(error).includes("invite") || attempt === 4) throw error;
+    }
+  }
+  throw new Error("Could not create an invite code");
+}
+
+/** Opens a group for the teammate the creator already listed. With sign-in on, this links their account to that row. */
+export async function joinGroup(
+  code: string,
+  githubUsername: string,
+  user: { email?: string; discordId?: string } | null,
+): Promise<{ project: Project } | { error: string; status: number }> {
+  const login = githubUsername.trim().replace(/^@/, "");
+  const row = await dbGet("SELECT id FROM projects WHERE lower(invite_code) = lower(?)", code.trim());
+  if (!row) return { error: "No group uses that invite code.", status: 404 };
+  const projectId = row.id as string;
+  const members = await getMembers(projectId);
+  const member = members.find((item) =>
+    item.githubUsername.toLowerCase() === login.toLowerCase()
+    || item.githubAliases.some((alias) => alias.toLowerCase() === login.toLowerCase()));
+  if (!member) return { error: "That GitHub username isn't on this group's team.", status: 404 };
+
+  if (user) {
+    const email = user.email?.toLowerCase();
+    const discordId = user.discordId;
+    if (member.discordId && discordId && member.discordId !== discordId) {
+      return { error: "That teammate is already linked to a different Discord account.", status: 403 };
+    }
+    if (member.email && email && member.email.toLowerCase() !== email) {
+      return { error: "That teammate is already linked to a different email.", status: 403 };
+    }
+    if (email && member.email?.toLowerCase() !== email) await dbRun("UPDATE members SET email = ? WHERE id = ?", user.email ?? null, member.id);
+    if (discordId && member.discordId !== discordId) await setMemberDiscordId(member.id, discordId);
+  }
+
+  const project = await getProject(projectId);
+  if (!project) return { error: "No group uses that invite code.", status: 404 };
+  return { project };
 }
 
 /** Plan-level fields that live on the projects row. */

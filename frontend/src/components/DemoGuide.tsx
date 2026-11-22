@@ -132,7 +132,7 @@ const STEPS: Step[] = [
   {
     title: "The cost",
     story: [
-      "22 of 31 commits never touched an AI. The whole week cost about 0.2 cents, versus 7 cents sending everything to the big AI.",
+      "22 of 31 commits never touched an AI. The whole week, dispute included, cost less than a cent, versus about 7 cents sending everything to the big AI.",
     ],
     action: "Show the cost",
     does: "Shows the cost box on this page.",

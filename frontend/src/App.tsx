@@ -1,7 +1,27 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  Link,
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import type { Project } from "@enforcer/shared";
-import { api, getViewerId, setViewerId as saveViewerId, useMocks } from "./api/client";
+import {
+  api,
+  getViewerId,
+  setViewerId as saveViewerId,
+  useMocks,
+} from "./api/client";
 import { demoProjectId } from "./api/mock";
 import Setup from "./pages/Setup";
 import TaskMap from "./pages/TaskMap";
@@ -11,17 +31,25 @@ import Report from "./pages/Report";
 import { ErrorState, LoadingState } from "./components/PageFeedback";
 import SignIn from "./pages/SignIn";
 import { signOut, supabase } from "./auth/supabase";
-import { DEMO_PROJECT_ID, enterDemo, exitDemo, forgetPresenterKey, isDemoMode } from "./demo";
+import {
+  DEMO_PROJECT_ID,
+  enterDemo,
+  exitDemo,
+  forgetPresenterKey,
+  isDemoMode,
+} from "./demo";
 import PageErrorBoundary from "./components/PageErrorBoundary";
 import Inbox, { useInbox } from "./pages/Inbox";
+import Icon, { type IconName } from "./components/Icon";
+import { EmptyState, Enforcer } from "./components/Enforcer";
 
 const links = [
-  ["/setup", "Setup"],
-  ["/taskmap", "Task map"],
-  ["/dashboard", "Dashboard"],
-  ["/inbox", "Inbox"],
-  ["/trace", "Trace"],
-  ["/report", "Report"],
+  ["/dashboard", "Dashboard", "dashboard"],
+  ["/taskmap", "Task map", "plan"],
+  ["/inbox", "Inbox", "inbox"],
+  ["/trace", "Agent trace", "trace"],
+  ["/report", "Status report", "report"],
+  ["/setup", "Project setup", "setup"],
 ] as const;
 
 interface ProjectContextValue {
@@ -39,12 +67,22 @@ const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 // ---------- sign-in (#62) ----------
 // The backend says whether sign-in is on (GET /auth/config), so the web app never needs its own setting.
-interface AuthValue { on: boolean; email: string; userId: string }
-const AuthContext = createContext<AuthValue>({ on: false, email: "", userId: "" });
+interface AuthValue {
+  on: boolean;
+  email: string;
+  userId: string;
+}
+const AuthContext = createContext<AuthValue>({
+  on: false,
+  email: "",
+  userId: "",
+});
 const useAuth = () => useContext(AuthContext);
 
 function AuthGate({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<"checking" | "off" | "signed-out" | "signed-in" | "error">(useMocks || isDemoMode() ? "off" : "checking");
+  const [state, setState] = useState<
+    "checking" | "off" | "signed-out" | "signed-in" | "error"
+  >(useMocks || isDemoMode() ? "off" : "checking");
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [error, setError] = useState("");
@@ -54,26 +92,72 @@ function AuthGate({ children }: { children: ReactNode }) {
     let cancelled = false;
     let unsubscribe = () => {};
     setState("checking");
-    api.getAuthConfig().then(async ({ enabled }) => {
-      if (cancelled) return;
-      if (!enabled) { setState("off"); return; }
-      if (!supabase) { setError("Sign-in is on, but VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY aren't set for the web app."); setState("error"); return; }
-      const apply = (session: { user: { id: string; email?: string } } | null) => {
+    api
+      .getAuthConfig()
+      .then(async ({ enabled }) => {
         if (cancelled) return;
-        setEmail(session?.user.email ?? "");
-        setUserId(session?.user.id ?? "");
-        setState(session ? "signed-in" : "signed-out");
-      };
-      apply((await supabase.auth.getSession()).data.session);
-      unsubscribe = supabase.auth.onAuthStateChange((_event, session) => apply(session)).data.subscription.unsubscribe;
-    }).catch((e: unknown) => { if (!cancelled) { setError(e instanceof Error ? e.message : "Couldn't reach the backend."); setState("error"); } });
-    return () => { cancelled = true; unsubscribe(); };
+        if (!enabled) {
+          setState("off");
+          return;
+        }
+        if (!supabase) {
+          setError(
+            "Sign-in is on, but VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY aren't set for the web app.",
+          );
+          setState("error");
+          return;
+        }
+        const apply = (
+          session: { user: { id: string; email?: string } } | null,
+        ) => {
+          if (cancelled) return;
+          setEmail(session?.user.email ?? "");
+          setUserId(session?.user.id ?? "");
+          setState(session ? "signed-in" : "signed-out");
+        };
+        apply((await supabase.auth.getSession()).data.session);
+        unsubscribe = supabase.auth.onAuthStateChange((_event, session) =>
+          apply(session),
+        ).data.subscription.unsubscribe;
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setError(
+            e instanceof Error ? e.message : "Couldn't reach the backend.",
+          );
+          setState("error");
+        }
+      });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [attempt]);
 
-  if (state === "checking") return <div className="p-8"><LoadingState message="Checking sign-in…" /></div>;
-  if (state === "error") return <div className="p-8"><ErrorState title="Could not start the app" onRetry={() => setAttempt((n) => n + 1)} retryLabel="Retry"><p>{error}</p></ErrorState></div>;
+  if (state === "checking")
+    return (
+      <div className="p-8">
+        <LoadingState message="Checking sign-in…" />
+      </div>
+    );
+  if (state === "error")
+    return (
+      <div className="p-8">
+        <ErrorState
+          title="Could not start the app"
+          onRetry={() => setAttempt((n) => n + 1)}
+          retryLabel="Retry"
+        >
+          <p>{error}</p>
+        </ErrorState>
+      </div>
+    );
   if (state === "signed-out") return <SignIn />;
-  return <AuthContext.Provider value={{ on: state === "signed-in", email, userId }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ on: state === "signed-in", email, userId }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 // Later pages can adopt a created project and react to member changes.
@@ -85,16 +169,26 @@ export function useProject(): ProjectContextValue {
 const projectStorageKey = `enforcer:project:${useMocks ? "mock" : "live"}`;
 function savedProjectId(): string {
   if (isDemoMode()) return DEMO_PROJECT_ID;
-  try { return localStorage.getItem(projectStorageKey) || (useMocks ? demoProjectId : ""); }
-  catch { return useMocks ? demoProjectId : ""; }
+  try {
+    return (
+      localStorage.getItem(projectStorageKey) || (useMocks ? demoProjectId : "")
+    );
+  } catch {
+    return useMocks ? demoProjectId : "";
+  }
 }
 
 function ProjectProvider({ children }: { children: ReactNode }) {
   const [project, updateProject] = useState<Project | null>(null);
   const [pickedViewerId, updateViewerId] = useState("");
-  const [verifiedViewer, setVerifiedViewer] = useState<{ identity: string; id: string } | null>(null);
+  const [verifiedViewer, setVerifiedViewer] = useState<{
+    identity: string;
+    id: string;
+  } | null>(null);
   const [error, setError] = useState("");
-  const [projectLoading, setProjectLoading] = useState(() => !!savedProjectId());
+  const [projectLoading, setProjectLoading] = useState(
+    () => !!savedProjectId(),
+  );
   const [attempt, setAttempt] = useState(0);
   const nextProjectId = useRef<string | null>(null);
   const setProject = (value: Project | null) => {
@@ -110,7 +204,9 @@ function ProjectProvider({ children }: { children: ReactNode }) {
       try {
         if (value) localStorage.setItem(projectStorageKey, value.id);
         else localStorage.removeItem(projectStorageKey);
-      } catch { /* Storage is optional for the current session. */ }
+      } catch {
+        /* Storage is optional for the current session. */
+      }
     }
   };
   useEffect(() => {
@@ -119,28 +215,65 @@ function ProjectProvider({ children }: { children: ReactNode }) {
     if (id) {
       setError("");
       setProjectLoading(true);
-      api.getProject(id).then((value) => { if (!cancelled) setProject(value); })
-        .catch((error: unknown) => { if (!cancelled) setError(error instanceof Error ? error.message : "Could not load the project."); })
-        .finally(() => { if (!cancelled) setProjectLoading(false); });
+      api
+        .getProject(id)
+        .then((value) => {
+          if (!cancelled) setProject(value);
+        })
+        .catch((error: unknown) => {
+          if (!cancelled)
+            setError(
+              error instanceof Error
+                ? error.message
+                : "Could not load the project.",
+            );
+        })
+        .finally(() => {
+          if (!cancelled) setProjectLoading(false);
+        });
     } else setProjectLoading(false);
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [attempt]);
   const auth = useAuth();
-  const memberIdentity = auth.on && project ? JSON.stringify([auth.userId, project.id, attempt]) : "";
-  const viewerLoading = !!memberIdentity && verifiedViewer?.identity !== memberIdentity && !error;
-  const viewerId = auth.on ? verifiedViewer?.identity === memberIdentity ? verifiedViewer.id : "" : pickedViewerId;
+  const memberIdentity =
+    auth.on && project
+      ? JSON.stringify([auth.userId, project.id, attempt])
+      : "";
+  const viewerLoading =
+    !!memberIdentity && verifiedViewer?.identity !== memberIdentity && !error;
+  const viewerId = auth.on
+    ? verifiedViewer?.identity === memberIdentity
+      ? verifiedViewer.id
+      : ""
+    : pickedViewerId;
   useEffect(() => {
     if (!auth.on || !project || projectLoading) return;
     let cancelled = false;
     setError("");
-    api.getMe(project.id).then((me) => {
-      if (cancelled) return;
-      if (!project.members.some((member) => member.id === me.id)) throw new Error("Your project membership changed. Retry to reload the team.");
-      saveViewerId(project.id, me.id);
-      setVerifiedViewer({ identity: memberIdentity, id: me.id });
-    })
-      .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "Could not work out who you are in this project."); });
-    return () => { cancelled = true; };
+    api
+      .getMe(project.id)
+      .then((me) => {
+        if (cancelled) return;
+        if (!project.members.some((member) => member.id === me.id))
+          throw new Error(
+            "Your project membership changed. Retry to reload the team.",
+          );
+        saveViewerId(project.id, me.id);
+        setVerifiedViewer({ identity: memberIdentity, id: me.id });
+      })
+      .catch((e: unknown) => {
+        if (!cancelled)
+          setError(
+            e instanceof Error
+              ? e.message
+              : "Could not work out who you are in this project.",
+          );
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [auth.on, auth.userId, project, projectLoading, attempt, memberIdentity]);
   const setViewerId = (id: string) => {
     if (!project || (id && !project.members.some((m) => m.id === id))) return;
@@ -149,7 +282,11 @@ function ProjectProvider({ children }: { children: ReactNode }) {
   };
   const openDemo = () => {
     nextProjectId.current = demoProjectId;
-    try { localStorage.setItem(projectStorageKey, demoProjectId); } catch { /* Mock mode defaults to this project without storage. */ }
+    try {
+      localStorage.setItem(projectStorageKey, demoProjectId);
+    } catch {
+      /* Mock mode defaults to this project without storage. */
+    }
     updateProject(null);
     updateViewerId("");
     setError("");
@@ -157,64 +294,305 @@ function ProjectProvider({ children }: { children: ReactNode }) {
     setAttempt((n) => n + 1);
   };
   return (
-    <ProjectContext.Provider value={{ project, setProject, viewerId, viewerLoading, setViewerId, projectLoading, projectError: error, retryProject: () => { setProjectLoading(true); setAttempt((n) => n + 1); }, openDemo }}>
+    <ProjectContext.Provider
+      value={{
+        project,
+        setProject,
+        viewerId,
+        viewerLoading,
+        setViewerId,
+        projectLoading,
+        projectError: error,
+        retryProject: () => {
+          setProjectLoading(true);
+          setAttempt((n) => n + 1);
+        },
+        openDemo,
+      }}
+    >
       {children}
     </ProjectContext.Provider>
   );
 }
 
 function AppShell() {
-  const { project, setProject, viewerId, setViewerId, projectLoading, projectError, retryProject, openDemo } = useProject();
+  const {
+    project,
+    setProject,
+    viewerId,
+    setViewerId,
+    projectLoading,
+    projectError,
+    retryProject,
+    openDemo,
+  } = useProject();
   const auth = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const inbox = useInbox(!projectLoading && !projectError ? project?.id ?? "" : "", viewerId);
+  const inbox = useInbox(
+    !projectLoading && !projectError ? (project?.id ?? "") : "",
+    viewerId,
+  );
+  const [navOpen, setNavOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const navButtonRef = useRef<HTMLButtonElement>(null);
+  const previousPath = useRef(location.pathname);
+  useEffect(() => {
+    if (previousPath.current !== location.pathname) {
+      setNavOpen(false);
+      mainRef.current?.focus();
+      previousPath.current = location.pathname;
+    }
+  }, [location.pathname]);
+  useEffect(() => {
+    if (!navOpen) return;
+    navRef.current?.querySelector<HTMLAnchorElement>("a")?.focus();
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setNavOpen(false);
+        navButtonRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [navOpen]);
+  const viewer = project?.members.find((m) => m.id === viewerId);
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2">Skip to content</a>
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-6 lg:px-8">
-          <Link to="/dashboard" className="font-semibold tracking-tight">Group Project Enforcer</Link>
-          <div className="flex min-w-0 items-center gap-3 text-sm">{project && <span className="max-w-xs truncate text-gray-600" title={project.name}>Project: {project.name}</span>}{useMocks && <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">Demo data</span>}</div>
+    <div className="workspace">
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+      <aside className={`workspace-rail ${navOpen ? "is-open" : ""}`}>
+        <Link
+          to="/dashboard"
+          className="brand-lockup"
+          aria-label="The Enforcer dashboard"
+        >
+          <span className="brand-symbol">
+            <Icon name="check" />
+          </span>
+          <span>
+            The Enforcer
+            <span className="brand-caption">Make progress together.</span>
+          </span>
+        </Link>
+        <div className="rail-project">
+          <span className="project-monogram">
+            {(project?.name ?? "New project").slice(0, 1)}
+          </span>
+          <div>
+            <strong>{project?.name ?? "Your workspace"}</strong>
+            <span>
+              {project
+                ? `${project.members.length} teammates · ${project.planActive ? "Active" : "In review"}`
+                : "Start with a shared plan"}
+            </span>
+          </div>
         </div>
-      <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
-        {links.map(([to, label]) => (
-          <NavLink key={to} to={to} className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? "bg-blue-50 text-blue-800" : "text-gray-600 hover:bg-gray-50"}`}>
-            {label}{to === "/inbox" && project && viewerId && <span aria-live="polite">{inbox.data ? ` (${inbox.data.unreadCount})` : inbox.error ? " (?)" : " (…)"}</span>}
-          </NavLink>
-        ))}
-        {auth.on ? <div className="mt-1 flex w-full min-w-0 items-center gap-3 text-sm sm:ml-auto sm:mt-0 sm:w-auto">
-          <span className="min-w-0 truncate text-gray-600">Signed in as <strong className="text-gray-900">{project?.members.find((m) => m.id === viewerId)?.name ?? auth.email}</strong></span>
-          <button type="button" onClick={() => { void signOut(); }} className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-1.5 font-medium hover:bg-gray-50">Sign out</button>
-        </div> : <label className="mt-1 flex w-full min-w-0 items-center gap-2 sm:ml-auto sm:mt-0 sm:w-auto">
-          <span className="shrink-0 text-sm font-medium">Who are you?</span>
-          <select aria-label="Who are you?" className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:max-w-64"
-            value={viewerId} disabled={projectLoading || !project?.members.length} onChange={(event) => setViewerId(event.target.value)}>
-            <option value="">{projectLoading ? "Loading team…" : project ? "Choose a member" : "Set up a project first"}</option>
-            {project?.members.map((member) => <option key={member.id} value={member.id}>{member.name} (@{member.githubUsername})</option>)}
-          </select>
-        </label>}
-      </nav>
-      </header>
-      {isDemoMode() && <DemoBanner />}
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <PageErrorBoundary resetKey={`${location.pathname}:${project?.id ?? ""}:${viewerId}`}>
-        {projectLoading ? <LoadingState message="Loading your project…" /> : projectError ? <ErrorState title="Could not load your project" onRetry={retryProject} retryLabel="Retry project">
-          <p>{projectError}</p><p>Your saved project could not be opened. Retry, or choose another starting point.</p>
-          <div className="flex flex-wrap gap-3">{useMocks && <button type="button" className="rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium" onClick={openDemo}>Open demo project</button>}
-            <button type="button" className="rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium" onClick={() => { setProject(null); navigate("/setup"); }}>Start a new project</button></div>
-        </ErrorState> : <Routes>
-          <Route path="/" element={<Navigate to="/setup" replace />} />
-          <Route path="/setup" element={<Setup />} />
-          <Route path="/taskmap" element={<TaskMap />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/inbox" element={<Inbox key={`${project?.id ?? ""}:${viewerId}`} inbox={inbox} />} />
-          <Route path="/trace" element={<Trace />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="*" element={<ErrorState title="Page not found"><Link to="/dashboard" className="font-medium underline">Open Dashboard</Link></ErrorState>} />
-        </Routes>}
-        </PageErrorBoundary>
-      </main>
+        <nav
+          ref={navRef}
+          id="workspace-navigation"
+          aria-label="Main navigation"
+          className="workspace-nav"
+        >
+          {links.map(([to, label, icon]) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `nav-item ${isActive ? "is-active" : ""}`
+              }
+            >
+              <Icon name={icon as IconName} />
+              <span>{label}</span>
+              {to === "/inbox" && project && viewerId && inbox.data?.unreadCount !== 0 && (
+                <span
+                  className="nav-count"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  aria-label={
+                    inbox.data
+                      ? `${inbox.data.unreadCount} unread reminders`
+                      : inbox.error
+                        ? "Inbox unavailable"
+                        : "Loading Inbox"
+                  }
+                >
+                  {inbox.data?.unreadCount ?? (inbox.error ? "?" : "…")}
+                </span>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="rail-steward">
+          <Enforcer decorative />
+          <p>
+            Keep your word.
+            <br />
+            <strong>Move the work.</strong>
+          </p>
+          <span>Checkpoints, not comparisons.</span>
+        </div>
+        <div className="rail-footer">
+          <Icon name="shield" />
+          <span>Your evidence stays yours.</span>
+        </div>
+      </aside>
+      <div className="workspace-body">
+        <header className="workspace-topbar">
+          <div className="topbar-location">
+            <button
+              ref={navButtonRef}
+              type="button"
+              className="btn btn-icon mobile-nav-toggle"
+              aria-label={navOpen ? "Close navigation" : "Open navigation"}
+              aria-expanded={navOpen}
+              aria-controls="workspace-navigation"
+              onClick={() => setNavOpen((open) => !open)}
+            >
+              <Icon name={navOpen ? "close" : "menu"} />
+            </button>
+            <span className="topbar-workspace">Workspace</span>
+            <span className="topbar-slash" aria-hidden="true">
+              /
+            </span>
+            <span className="mobile-brand">The Enforcer</span>
+            <span className="topbar-route">
+              {links.find(([to]) => to === location.pathname)?.[1] ??
+                "Page not found"}
+            </span>
+            {useMocks && <span className="demo-data-label">Sample data</span>}
+          </div>
+          {auth.on ? (
+            <div className="identity-control">
+              <span className="member-avatar">
+                {(viewer?.name ?? auth.email).slice(0, 1)}
+              </span>
+              <span>{viewer?.name ?? auth.email}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  void signOut();
+                }}
+                className="btn btn-quiet"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <label className="identity-control">
+              <span className="member-avatar" aria-hidden="true">
+                {viewer?.name.slice(0, 1) ?? "?"}
+              </span>
+              <span className="identity-label">Who are you?</span>
+              <select
+                aria-label="Who are you?"
+                value={viewerId}
+                disabled={projectLoading || !project?.members.length}
+                onChange={(event) => setViewerId(event.target.value)}
+              >
+                <option value="">
+                  {projectLoading
+                    ? "Loading team…"
+                    : project
+                      ? "Choose member"
+                      : "Set up a project first"}
+                </option>
+                {project?.members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name} (@{member.githubUsername})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </header>
+        {isDemoMode() && <DemoBanner />}
+        <main
+          id="main-content"
+          ref={mainRef}
+          tabIndex={-1}
+          className="workspace-main"
+        >
+          <PageErrorBoundary
+            resetKey={`${location.pathname}:${project?.id ?? ""}:${viewerId}`}
+          >
+            {projectLoading ? (
+              <LoadingState message="Loading your project…" />
+            ) : projectError ? (
+              <ErrorState
+                title="Could not load your project"
+                onRetry={retryProject}
+                retryLabel="Retry project"
+              >
+                <p>{projectError}</p>
+                <p>
+                  Your saved project could not be opened. Retry, or choose
+                  another starting point.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {useMocks && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={openDemo}
+                    >
+                      Open demo project
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setProject(null);
+                      navigate("/setup");
+                    }}
+                  >
+                    Start a new project
+                  </button>
+                </div>
+              </ErrorState>
+            ) : (
+              <Routes>
+                <Route path="/" element={<Navigate to="/setup" replace />} />
+                <Route path="/setup" element={<Setup />} />
+                <Route path="/taskmap" element={<TaskMap />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route
+                  path="/inbox"
+                  element={
+                    <Inbox
+                      key={`${project?.id ?? ""}:${viewerId}`}
+                      inbox={inbox}
+                    />
+                  }
+                />
+                <Route path="/trace" element={<Trace />} />
+                <Route path="/report" element={<Report />} />
+                <Route
+                  path="*"
+                  element={
+                    <EmptyState
+                      title="Nothing on the plan lives here."
+                      action={{ to: "/dashboard", label: "Back to Dashboard" }}
+                    >
+                      <p>
+                        This page doesn’t exist. It may have moved, or the link
+                        has a typo. Use the navigation to find your way back.
+                      </p>
+                    </EmptyState>
+                  }
+                />
+              </Routes>
+            )}
+          </PageErrorBoundary>
+        </main>
+        <footer className="workspace-footer">
+          <span>Make the plan. Keep the promise.</span>
+          <span>The Enforcer</span>
+        </footer>
+      </div>
     </div>
   );
 }
@@ -233,28 +611,83 @@ function DemoBanner() {
   const [error, setError] = useState("");
   useEffect(() => {
     let cancelled = false;
-    api.getPresenterStatus().then((s) => { if (!cancelled) setPresenter(s.presenter); }).catch(() => { if (!cancelled) setPresenter(false); });
-    return () => { cancelled = true; };
+    api
+      .getPresenterStatus()
+      .then((s) => {
+        if (!cancelled) setPresenter(s.presenter);
+      })
+      .catch(() => {
+        if (!cancelled) setPresenter(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
   async function reset() {
     setBusy(true);
     setError("");
-    try { await api.resetDemo(); window.location.assign("/trace"); }
-    catch (e) { setError(e instanceof Error ? e.message : "Could not reset the demo."); setBusy(false); }
+    try {
+      await api.resetDemo();
+      window.location.assign("/trace");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not reset the demo.");
+      setBusy(false);
+    }
   }
-  function exit() { exitDemo(); window.location.assign("/"); }
+  function exit() {
+    exitDemo();
+    window.location.assign("/");
+  }
   return (
-    <div role="region" aria-label="Demo mode" className="border-b border-amber-200 bg-amber-50">
+    <div
+      role="region"
+      aria-label="Demo mode"
+      className="border-b border-amber-200 bg-amber-50"
+    >
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 text-sm text-amber-950 sm:px-6 lg:px-8">
         <span className="font-semibold">Demo mode</span>
         <span>PayLite sample data, no sign-in.</span>
-        <span>{presenter === null ? "" : presenter ? "Presenter: Discord messages on." : "Discord messages off (Inbox and trace only)."}</span>
-        {presenter && <button type="button" className="underline" onClick={() => { forgetPresenterKey(); setPresenter(false); }}>Forget presenter key</button>}
-        <span className="flex flex-wrap gap-2 sm:ml-auto">
-          <button type="button" disabled={busy} onClick={reset} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-medium hover:bg-amber-100 disabled:opacity-50">{busy ? "Resetting…" : "Reset demo"}</button>
-          <button type="button" onClick={exit} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-medium hover:bg-amber-100">Exit demo</button>
+        <span>
+          {presenter === null
+            ? ""
+            : presenter
+              ? "Presenter: Discord messages on."
+              : "Discord messages off (Inbox and trace only)."}
         </span>
-        {error && <span role="alert" className="w-full text-red-800">{error}</span>}
+        {presenter && (
+          <button
+            type="button"
+            className="underline"
+            onClick={() => {
+              forgetPresenterKey();
+              setPresenter(false);
+            }}
+          >
+            Forget presenter key
+          </button>
+        )}
+        <span className="flex flex-wrap gap-2 sm:ml-auto">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={reset}
+            className="btn btn-secondary"
+          >
+            {busy ? "Resetting…" : "Reset demo"}
+          </button>
+          <button
+            type="button"
+            onClick={exit}
+            className="btn btn-secondary"
+          >
+            Exit demo
+          </button>
+        </span>
+        {error && (
+          <span role="alert" className="w-full text-red-800">
+            {error}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -262,6 +695,13 @@ function DemoBanner() {
 
 export default function App() {
   const location = useLocation();
-  if (location.pathname === "/demo" || location.pathname.startsWith("/demo/")) return <DemoEntry />;
-  return <AuthGate><ProjectProvider><AppShell /></ProjectProvider></AuthGate>;
+  if (location.pathname === "/demo" || location.pathname.startsWith("/demo/"))
+    return <DemoEntry />;
+  return (
+    <AuthGate>
+      <ProjectProvider>
+        <AppShell />
+      </ProjectProvider>
+    </AuthGate>
+  );
 }

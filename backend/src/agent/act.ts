@@ -10,14 +10,14 @@ import type { StoredDecision } from "./decide";
 
 /**
  * What act needs from Person C's discord/notify.ts (#32):
- *   export async function notify(member: Member | null, message: string, opts: NotifyOptions): Promise<void>
+ *   notify(member: Member | null, message: string, opts: NotifyOptions): Promise<"discord" | "email">
  * `member` null = post in the group channel. `buttons` = add On it / Blocked / Need help for that checkpoint.
- * It should throw if the message couldn't be delivered.
+ * Returns the delivery channel (legacy test overrides may return void). Throws on delivery failure.
  */
 export interface NotifyOptions {
   buttons?: { checkpointId: string };
 }
-export type Notify = (member: Member | null, message: string, opts: NotifyOptions) => Promise<void>;
+export type Notify = (member: Member | null, message: string, opts: NotifyOptions) => Promise<void | "discord" | "email">;
 
 /** Resolves discord/notify.ts's `notify`, or undefined while it isn't built yet. */
 async function defaultNotify(): Promise<Notify | undefined> {
@@ -42,7 +42,7 @@ export async function act(opts: {
   decisions: StoredDecision[];
   now: Date;
   notify?: Notify;
-  /** false = Inbox only (the public demo without the presenter key, #76). */
+  /** false = Inbox only; disables both Discord and email (public demo without the presenter key, #76). */
   discord?: boolean;
 }): Promise<ActResult> {
   const { projectId, checkinId, now } = opts;
@@ -76,13 +76,13 @@ export async function act(opts: {
         input = { kind: "dm", memberName: recipient?.name ?? ownerName, ...base, hoursOfGraceLeft: hoursLeft, teamAlerted: checkpoint.status === "alerted" };
         to = recipient ?? null;
         buttons = { checkpointId: checkpoint.id };
-        label = `DM to ${recipient?.name}`;
+        label = `reminder to ${recipient?.name}`;
         break;
       }
       case "nudge_blocker":
         input = { kind: "blocker_dm", memberName: recipient?.name ?? "a teammate", waitingName: ownerName, ...base };
         to = recipient ?? null;
-        label = `blocker DM to ${recipient?.name}`;
+        label = `blocker reminder to ${recipient?.name}`;
         break;
       case "help_post":
         input = { kind: "help_post", memberName: recipient?.name ?? ownerName, ...base };
@@ -105,23 +105,25 @@ export async function act(opts: {
     }
 
     // The in-app Inbox (#59) always gets the message, so it counts as sent (and starts the cooldown)
-    // even when Discord can't deliver it. Discord is tried on top; discordSent records whether it got there.
+    // even when external delivery fails. discordSent records Discord only, never email.
     let discordSent = false;
-    let discordProblem = "";
-    if (opts.discord === false) discordProblem = "public demo, Discord is off without the presenter key";
-    else if (!notify) discordProblem = "Discord isn't set up yet";
-    else if (to !== null && !to?.discordId) discordProblem = "hasn't linked Discord";
+    let delivered = false;
+    let deliveryProblem = "";
+    if (opts.discord === false) deliveryProblem = "public demo, external notifications are off without the presenter key";
+    else if (!notify) deliveryProblem = "Notifications aren't set up yet";
+    else if (to !== null && !to.discordId && !to.email) deliveryProblem = "hasn't linked Discord or provided an email";
     else {
       try {
-        await notify(to, message, { buttons });
-        discordSent = true;
+        const channel = await notify(to, message, { buttons });
+        discordSent = channel !== "email";
+        delivered = true;
       } catch (e) {
-        discordProblem = `Discord delivery failed (${(e as Error).message})`;
+        deliveryProblem = `Notification delivery failed (${(e as Error).message})`;
       }
     }
     await markDecisionSent(d.id, message, now.toISOString(), discordSent); // the check-in's clock, so cooldowns work on the demo clock
-    if (discordSent) result.sent.push(label);
-    else result.notSent.push(`${label}: Inbox only, ${discordProblem}`);
+    if (delivered) result.sent.push(label);
+    else result.notSent.push(`${label}: Inbox only, ${deliveryProblem}`);
   }
   return result;
 }

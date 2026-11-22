@@ -21,6 +21,8 @@ export const config = {
   discordGuildId: process.env.DISCORD_GUILD_ID ?? "",
   discordGroupChannelId: process.env.DISCORD_GROUP_CHANNEL_ID ?? "",
   discordPublicKey: process.env.DISCORD_PUBLIC_KEY ?? "", // verifies /api/discord/interactions
+  resendApiKey: process.env.RESEND_API_KEY ?? "", // C10: email fallback for members without Discord
+  emailFrom: process.env.EMAIL_FROM ?? "", // a sender on a Resend-verified domain
   cronSecret: process.env.CRON_SECRET ?? "", // Supabase pg_cron sends it to /api/cron/*
   demoPresenterKey: process.env.DEMO_PRESENTER_KEY ?? "", // demo check-ins only send Discord messages with it (#76)
   timezone: process.env.TZ ?? "America/Toronto",

@@ -158,14 +158,14 @@ One click produces a **neutral status summary** for the team: for each task and 
 | Monorepo | npm workspaces (`frontend`, `backend`, `shared`) |
 | Frontend | React + Vite, Tailwind CSS, Recharts, React Router |
 | Backend | Node 20 + Express |
-| Database | SQLite via `better-sqlite3` |
+| Database | **Supabase Postgres** via `postgres` (async; row-level security on, no policies, so Supabase's public REST API can't touch the tables) |
 | GitHub | `@octokit/rest` (webhooks are Should) |
 | LLM | Anthropic API: small model = `claude-haiku-5-5`, big model = `claude-sonnet-5-5` (set in `.env`) |
 | Spec parsing | `pdf-parse` (PDF), `mammoth` (Word), raw text for Markdown |
 | Discord | `discord.js`: DMs, group posts, buttons, select menus, `/link` slash command |
-| Scheduler | `node-cron` (daily at 18:00, plus the 6-hourly conditional check) |
+| Scheduler | **Supabase `pg_cron` + `pg_net`** call `/api/cron/daily` (18:00) and `/api/cron/extra` (00:00, 06:00, 12:00) with `CRON_SECRET`; `node-cron` does the same in local dev |
 | Validation | `zod` (shared schemas, LLM JSON output) |
-| Deploy | Vercel (frontend), Render or Railway (backend + bot) |
+| Deploy | **Vercel** (free): the web app plus the Express app as one function at `/api`, in `iad1` next to the database. Discord uses HTTP interactions (`/api/discord/interactions`); locally the always-on bot connection still works. See issue #71 |
 
 **Sign-in (#62): Supabase Auth.** With `SUPABASE_URL` set, members sign in with **Discord** (the account they `/link`ed) or an **email link**. The backend verifies the Supabase token (ES256, via Supabase's public signing keys) and works out which member you are in each project: Discord account first, then email. It **overwrites** any `viewerId` / `memberId` the browser sends, and non-members get 403. So owner-only evidence is now enforced by the server. Creating a project requires adding yourself with the email you signed in with. **`AUTH_DISABLED=true`** brings back the "Who are you?" picker for local demos (all four demo members share the presenter's Discord account); never set it in production.
 
@@ -191,7 +191,7 @@ group-project-enforcer/
 │   ├── config.ts                # env + tunable constants (section 10)   (A)
 │   ├── db/
 │   │   ├── schema.sql           # tables (see section 9)                 (A)
-│   │   └── db.ts                # better-sqlite3 helpers                 (A)
+│   │   └── db.ts                # Postgres helpers (async)               (A)
 │   ├── routes/
 │   │   ├── projects.ts          # /api/projects, members, aliases        (A)
 │   │   ├── taskmap.ts           # plan generate / get / edit / agree     (A)
@@ -624,17 +624,17 @@ Nothing in these rules looks at commit counts or activity.
 nvm use                       # Node 20
 npm install                   # installs all workspaces
 cp .env.example .env          # fill in the keys (shared privately on Discord, never committed)
-npm run db:init               # creates SQLite file from schema.sql
+npm run db:init               # creates the tables in Supabase (safe to run again)
 npm run dev                   # runs backend (:3001) + frontend (:5173) together
 npm run demo:seed             # seeds the demo project
 ```
 
-After a schema change, delete `data/enforcer.db` and run `npm run db:init` again (tables are not migrated).
+After a schema change, run `npm run db:init` again (`CREATE … IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`). From a laptop each query is ~30 ms away, so Simulate takes ~2 minutes locally and a few seconds on Vercel.
 
 ### `.env.example`
 ```
 PORT=3001
-DATABASE_PATH=./data/enforcer.db
+DATABASE_URL=                   # Supabase transaction pooler (port 6543)
 GITHUB_TOKEN=
 GITHUB_WEBHOOK_SECRET=          # Should: only needed for push webhooks
 ANTHROPIC_API_KEY=

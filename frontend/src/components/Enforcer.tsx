@@ -23,7 +23,7 @@ export function Enforcer({
       alt={
         decorative
           ? ""
-          : "The Enforcer, a watchful rook in a green jacket holding a clipboard"
+          : "Enforcer, a watchful rook in a green jacket holding a clipboard"
       }
       draggable={false}
     />
@@ -44,7 +44,7 @@ export function EnforcerNote({
   return (
     <section
       className={`enforcer-note enforcer-note--${tone}`}
-      aria-label="A note from The Enforcer"
+      aria-label="A note from Enforcer"
     >
       <div className="enforcer-note-copy">
         <h2>{title}</h2>

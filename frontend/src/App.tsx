@@ -13,6 +13,7 @@ import SignIn from "./pages/SignIn";
 import { signOut, supabase } from "./auth/supabase";
 import PageErrorBoundary from "./components/PageErrorBoundary";
 import Inbox, { useInbox } from "./pages/Inbox";
+import Groups from "./pages/Groups";
 
 const links = [
   ["/setup", "Setup"],
@@ -199,7 +200,8 @@ function AppShell() {
           <div className="flex flex-wrap gap-3">{useMocks && <button type="button" className="rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium" onClick={openDemo}>Open demo project</button>}
             <button type="button" className="rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium" onClick={() => { setProject(null); navigate("/setup"); }}>Start a new project</button></div>
         </ErrorState> : <Routes>
-          <Route path="/" element={<Navigate to="/setup" replace />} />
+          <Route path="/" element={<Navigate to="/groups" replace />} />
+          <Route path="/groups" element={<Groups />} />
           <Route path="/setup" element={<Setup />} />
           <Route path="/taskmap" element={<TaskMap />} />
           <Route path="/dashboard" element={<Dashboard />} />

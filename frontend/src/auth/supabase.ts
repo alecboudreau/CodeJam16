@@ -14,7 +14,7 @@ export async function accessToken(): Promise<string | undefined> {
   return data.session?.access_token;
 }
 
-const returnTo = () => window.location.origin + window.location.pathname;
+const returnTo = () => `${window.location.origin}/groups`;
 
 export async function signInWithDiscord(): Promise<void> {
   if (!supabase) throw new Error("Sign-in isn't configured (VITE_SUPABASE_URL).");

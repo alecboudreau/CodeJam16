@@ -47,7 +47,7 @@ export default function SignIn() {
           <span className="brand-symbol">
             <img src="/brand/mark.svg?v=4" width="40" height="40" alt="" />
           </span>
-          Enforcer
+          <span className="auth-brand-name">Enforcer</span>
         </a>
         <div className="auth-story-content">
           <Enforcer size="large" />
@@ -63,7 +63,6 @@ export default function SignIn() {
       </aside>
       <main className="auth-panel">
         <div className="auth-form">
-          <Enforcer className="auth-mobile-enforcer" />
           <h1>Back to the work.</h1>
           <p className="mt-2 text-sm text-gray-600">
             Sign in to see your team's plan and your own progress.

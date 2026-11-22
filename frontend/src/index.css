@@ -319,8 +319,7 @@
     background: var(--surface);
   }
 }
-.mobile-brand,
-.auth-mobile-enforcer {
+.mobile-brand {
   display: none;
 }
 .workspace {
@@ -983,6 +982,10 @@
 .setup-form fieldset fieldset legend {
   padding: 0 10px 0 0;
   color: var(--muted);
+}
+@keyframes auth-brand-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .auth-page {
   min-height: 100dvh;
@@ -1743,7 +1746,22 @@
     display: block;
   }
   .auth-story {
-    padding: 25px;
+    padding: 32px 25px;
+  }
+  .auth-story .brand-lockup {
+    align-self: center;
+    flex-direction: column;
+    gap: 18px;
+    font-size: 2rem;
+    line-height: 1.15;
+  }
+  .auth-story .brand-symbol {
+    width: 140px;
+    height: 140px;
+    flex-basis: 140px;
+  }
+  .auth-brand-name {
+    animation: auth-brand-fade 600ms ease-out both;
   }
   .auth-story-content {
     display: none;
@@ -1878,12 +1896,6 @@
   }
   .topbar-route {
     display: none;
-  }
-  .auth-mobile-enforcer {
-    display: block;
-    width: 64px;
-    height: 96px;
-    margin-bottom: 24px;
   }
   .dashboard-page > .page-heading {
     align-items: flex-start;

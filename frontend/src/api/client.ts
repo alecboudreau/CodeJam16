@@ -33,6 +33,15 @@ export interface InboxItem {
 export interface InboxData { forYou: InboxItem[]; team: InboxItem[]; unreadCount: number }
 export interface StatusInput { status: InboxStatus; blockedById?: string }
 
+export interface TaskEdit {
+  title: string;
+  description: string;
+  points: 1 | 2 | 3 | 5 | 8 | 13;
+  ownerId: string;
+  paths: string[];
+  tracked: boolean;
+}
+
 export interface GroupSummary {
   id: string;
   name: string;
@@ -145,6 +154,10 @@ export const api = {
   generateTaskMap: (id: string) => request<TaskMap>("POST", `${projectPath(id)}/taskmap/generate`),
   getTaskMap: (id: string) => request<TaskMap>("GET", `${projectPath(id)}/taskmap`),
   updateTaskMap: (id: string, input: UpdatePlanInput) => request<TaskMap>("PUT", `${projectPath(id)}/taskmap`, input),
+  setDeadline: (id: string, at: string) => request<Project>("PUT", `${projectPath(id)}/deadline`, { at }),
+  addTask: (id: string, input: TaskEdit) => request<TaskMap>("POST", `${projectPath(id)}/tasks`, input),
+  updateTask: (id: string, taskId: string, input: TaskEdit) => request<TaskMap>("PUT", `${projectPath(id)}/tasks/${encodeURIComponent(taskId)}`, input),
+  setCheckpointDue: (id: string, checkpointId: string, at: string) => request<TaskMap>("PUT", `${projectPath(id)}/checkpoints/${encodeURIComponent(checkpointId)}`, { at }),
   agree: (id: string, items?: PlanItemRef[], memberId?: string) =>
     request<TaskMap>("POST", `${projectPath(id)}/taskmap/agree`, { memberId: member(id, memberId), items }),
   runCheckin: (id: string) => request<{ checkinId: string }>("POST", `${projectPath(id)}/checkin`),

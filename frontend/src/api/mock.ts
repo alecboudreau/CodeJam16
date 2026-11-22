@@ -281,6 +281,40 @@ export async function mockRequest(method: string, path: string, body?: unknown):
       return state.plan;
     }
     if (method === "GET" && route === "taskmap") return state.plan;
+    if (method === "PUT" && route === "deadline") {
+      const at = (body as { at?: string }).at ?? "";
+      if (!Number.isFinite(Date.parse(at))) return fail("Enter a valid date");
+      state.project.deadline = new Date(at).toISOString();
+      return state.project;
+    }
+    if ((method === "POST" && route === "tasks") || (method === "PUT" && parts[2] === "tasks" && parts.length === 4)) {
+      const input = body as { title?: string; description?: string; points?: number; ownerId?: string; paths?: string[]; tracked?: boolean };
+      const title = input.title?.trim() ?? "";
+      if (!title || !input.ownerId) return fail("Enter a task title and an owner");
+      findMember(state, input.ownerId);
+      const points = [1, 2, 3, 5, 8, 13].includes(Number(input.points)) ? Number(input.points) : 0;
+      if (!points) return fail("Choose an effort size of 1, 2, 3, 5, 8, or 13");
+      const paths = (input.paths ?? []).map((path) => path.trim()).filter(Boolean);
+      if (method === "POST") {
+        state.plan.tasks.push({
+          id: crypto.randomUUID(), title, description: input.description ?? "", points, ownerId: input.ownerId,
+          paths, tracked: input.tracked !== false, dependsOn: [], completion: 0, approvedBy: [input.ownerId],
+        });
+      } else {
+        const task = state.plan.tasks.find((item) => item.id === parts[3]) ?? fail("task not found", 404);
+        Object.assign(task, { title, description: input.description ?? "", points, ownerId: input.ownerId, paths, tracked: Boolean(input.tracked), approvedBy: [input.ownerId] });
+      }
+      refreshPlan(state);
+      return state.plan;
+    }
+    if (method === "PUT" && parts[2] === "checkpoints" && parts.length === 4) {
+      const checkpoint = state.plan.checkpoints.find((item) => item.id === parts[3]) ?? fail("checkpoint not found", 404);
+      const at = (body as { at?: string }).at ?? "";
+      if (!Number.isFinite(Date.parse(at))) return fail("Enter a valid date");
+      checkpoint.dueAt = new Date(at).toISOString();
+      refreshPlan(state);
+      return state.plan;
+    }
     if (method === "PUT" && route === "taskmap") {
       const parsed = PutTaskMapBody.safeParse(body);
       if (!parsed.success) return fail("Invalid plan");

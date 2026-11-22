@@ -421,7 +421,6 @@ function AppShell() {
           ))}
         </nav>
         <div className="rail-steward">
-          <Enforcer decorative />
           <p>
             Make the plan.
             <br />

@@ -5,4 +5,4 @@ Some notes of stuff to add etc.
 -make it so you can update the specs document and add more people to group
 -make the github linkning better, /link is kind of weird/annoying? better solution that dpoesnt involve texting in discord??
 -make the UI better smoother/cleaner.
--
+

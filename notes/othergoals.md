@@ -21,3 +21,5 @@ Some notes of stuff to add etc.
 -make it more of a funnel where you start with your groups and then that goes into the rest of the stuff. its confusioing right now.
 
 -add a project menu where you would add teamtaes and add info about project.
+
+-reallocation of tasks. splitting up more if more people.

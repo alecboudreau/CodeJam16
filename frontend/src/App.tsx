@@ -42,6 +42,7 @@ import PageErrorBoundary from "./components/PageErrorBoundary";
 import Inbox, { useInbox } from "./pages/Inbox";
 import Groups from "./pages/Groups";
 import GroupSwitcher from "./components/GroupSwitcher";
+import DemoGuide, { resetDemoGuide } from "./components/DemoGuide";
 import MyWork from "./pages/MyWork";
 import ProjectInfo from "./pages/ProjectInfo";
 import Icon, { type IconName } from "./components/Icon";
@@ -504,6 +505,7 @@ function AppShell() {
           )}
         </header>
         {isDemoMode() && <DemoBanner />}
+        {isDemoMode() && project && <DemoGuide />}
         <main
           id="main-content"
           ref={mainRef}
@@ -570,7 +572,8 @@ function AppShell() {
                 </div>
               </section>
             ) : (
-              <Routes>
+              // The demo guide navigates with state.demoRefresh after an action so the page reloads its data.
+              <Routes key={(location.state as { demoRefresh?: number } | null)?.demoRefresh ?? 0}>
                 <Route path="/" element={<Navigate to="/groups" replace />} />
                 <Route path="/work" element={<MyWork />} />
                 <Route path="/project" element={<ProjectInfo />} />
@@ -643,6 +646,7 @@ function DemoBanner() {
     setError("");
     try {
       await api.resetDemo();
+      resetDemoGuide(); // the guide starts over too, with no days played
       window.location.assign("/trace");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not reset the demo.");

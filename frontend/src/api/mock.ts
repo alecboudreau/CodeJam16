@@ -1,8 +1,9 @@
 import type {
   Checkpoint, ComputeMeter, Dashboard, Dispute, Judgment, Member, PlanItemRef,
-  Project, Report, Task, TaskMap, TraceStep,
+  PlanDraft, Project, Report, Task, TaskMap, TraceStep,
 } from "@enforcer/shared";
-import type { CreateProjectInput, DisputeInput, InboxData, InboxItem, StatusInput, UpdatePlanInput } from "./client";
+import { AgreeBody, PutTaskMapBody } from "@enforcer/shared";
+import type { CreateProjectInput, DisputeInput, InboxData, InboxItem, StatusInput } from "./client";
 
 export const demoProjectId = "demo-payments";
 const at = "2026-11-20T18:00:00.000Z";
@@ -124,14 +125,32 @@ function refreshPlan(state: MockState): void {
     const memberIds = required.filter((id) => !approved.includes(id));
     if (memberIds.length) plan.waitingOn.push({ item, memberIds });
   };
-  for (const task of plan.tasks) add({ kind: "task", id: task.id }, [task.ownerId], task.approvedBy);
-  for (const cp of plan.checkpoints) add({ kind: "checkpoint", id: cp.id }, cp.ownerId ? [cp.ownerId] : project.members.map((m) => m.id), cp.approvedBy);
-  add({ kind: "grace" }, project.members.map((m) => m.id), plan.graceApprovedBy);
+  const approvalPlan = plan.pending ?? plan;
+  for (const task of approvalPlan.tasks) add({ kind: "task", id: task.id }, [task.ownerId], task.approvedBy);
+  for (const cp of approvalPlan.checkpoints) add({ kind: "checkpoint", id: cp.id }, cp.ownerId ? [cp.ownerId] : project.members.map((m) => m.id), cp.approvedBy);
+  add({ kind: "grace" }, project.members.map((m) => m.id), approvalPlan.graceApprovedBy);
+  if (plan.active) {
+    if (plan.pending && !plan.waitingOn.length) {
+      const oldTasks = new Map(plan.tasks.map((task) => [task.id, task]));
+      const oldCheckpoints = new Map(plan.checkpoints.map((checkpoint) => [checkpoint.id, checkpoint]));
+      const pending = plan.pending;
+      Object.assign(plan, pending, { pending: null, version: plan.version + 1,
+        tasks: pending.tasks.map((task) => ({ ...task, completion: oldTasks.get(task.id)?.completion ?? 0 })),
+        checkpoints: pending.checkpoints.map((checkpoint) => ({ ...checkpoint,
+          status: oldCheckpoints.get(checkpoint.id)?.status ?? "pending", missedAt: oldCheckpoints.get(checkpoint.id)?.missedAt, graceEndsAt: oldCheckpoints.get(checkpoint.id)?.graceEndsAt,
+        })),
+      });
+      project.gracePeriodHours = plan.gracePeriodHours;
+    }
+    return;
+  }
   const active = plan.tasks.length > 0 && plan.waitingOn.length === 0;
   if (active && !plan.active) plan.version += 1;
   plan.active = project.planActive = active;
   project.gracePeriodHours = plan.gracePeriodHours;
 }
+const taskDefinition = (task: Task) => JSON.stringify([task.title, task.description, task.points, task.ownerId, task.tracked, [...task.paths].sort(), [...task.dependsOn].sort()]);
+const checkpointDefinition = (checkpoint: Checkpoint) => JSON.stringify([checkpoint.taskId, checkpoint.ownerId, Date.parse(checkpoint.dueAt), checkpoint.targetCompletion, checkpoint.criteria]);
 function dashboard(state: MockState, viewerId: string): Dashboard {
   findMember(state, viewerId);
   const { plan, project } = state;
@@ -223,36 +242,73 @@ export async function mockRequest(method: string, path: string, body?: unknown):
     }
     if (method === "GET" && route === "taskmap") return state.plan;
     if (method === "PUT" && route === "taskmap") {
-      if (state.plan.active) return fail("Editing an active mock plan is not supported yet", 409);
-      const input = body as UpdatePlanInput;
-      const preserve = <T extends { id: string; approvedBy: string[] }>(items: T[], previous: T[]): T[] => items.map((item) => {
-        const old = previous.find((i) => i.id === item.id);
-        const withoutApprovals = (value: T) => ({ ...value, approvedBy: [] });
-        return { ...item, approvedBy: old && JSON.stringify(withoutApprovals(old)) === JSON.stringify(withoutApprovals(item)) ? old.approvedBy : [] };
+      const parsed = PutTaskMapBody.safeParse(body);
+      if (!parsed.success) return fail("Invalid plan");
+      const input = parsed.data;
+      const ids = new Set(input.tasks.map((task) => task.id));
+      if (ids.size !== input.tasks.length || new Set(input.checkpoints.map((checkpoint) => checkpoint.id)).size !== input.checkpoints.length) return fail("Plan item ids must be unique");
+      const byId = new Map(input.tasks.map((task) => [task.id, task]));
+      const visiting = new Set<string>(), visited = new Set<string>();
+      const cycle = (id: string): boolean => {
+        if (visiting.has(id)) return true;
+        if (visited.has(id)) return false;
+        visiting.add(id);
+        if (byId.get(id)?.dependsOn.some((dependency) => !byId.has(dependency) || cycle(dependency))) return true;
+        visiting.delete(id); visited.add(id); return false;
+      };
+      for (const task of input.tasks) findMember(state, task.ownerId);
+      if (input.tasks.some((task) => cycle(task.id))) return fail("Dependencies must refer to other tasks and cannot form a loop");
+      for (const checkpoint of input.checkpoints) {
+        if (!byId.get(checkpoint.taskId)?.tracked) return fail("Checkpoints must belong to a tracked task");
+        if (checkpoint.ownerId !== null) findMember(state, checkpoint.ownerId);
+      }
+      const previous = state.plan.pending;
+      const tasks = input.tasks.map((task) => {
+        const old = state.plan.tasks.find((old) => old.id === task.id);
+        const pending = previous?.tasks.find((old) => old.id === task.id);
+        const normalized = { ...task, paths: task.tracked ? task.paths : [] };
+        return { ...normalized, completion: old?.completion ?? 0,
+          approvedBy: pending && taskDefinition(pending) === taskDefinition(normalized) ? pending.approvedBy : old && taskDefinition(old) === taskDefinition(normalized) ? old.approvedBy : [] };
       });
-      state.plan.tasks = preserve(input.tasks, state.plan.tasks);
-      state.plan.checkpoints = preserve(input.checkpoints, state.plan.checkpoints);
-      if (input.gracePeriodHours !== state.plan.gracePeriodHours) state.plan.graceApprovedBy = [];
-      state.plan.gracePeriodHours = input.gracePeriodHours;
+      const checkpoints = input.checkpoints.map((checkpoint) => {
+        const old = state.plan.checkpoints.find((old) => old.id === checkpoint.id);
+        const pending = previous?.checkpoints.find((old) => old.id === checkpoint.id);
+        return { ...checkpoint, dueAt: new Date(checkpoint.dueAt).toISOString(), status: old?.status ?? "pending" as const,
+          missedAt: old?.missedAt, graceEndsAt: old?.graceEndsAt,
+          approvedBy: pending && checkpointDefinition(pending) === checkpointDefinition(checkpoint) ? pending.approvedBy : old && checkpointDefinition(old) === checkpointDefinition(checkpoint) ? old.approvedBy : [] };
+      });
+      const plan: PlanDraft = { tasks, checkpoints, gracePeriodHours: input.gracePeriodHours,
+        graceApprovedBy: previous?.gracePeriodHours === input.gracePeriodHours ? previous.graceApprovedBy : state.plan.gracePeriodHours === input.gracePeriodHours ? state.plan.graceApprovedBy : [] };
+      if (state.plan.active) {
+        const changed = tasks.length !== state.plan.tasks.length || checkpoints.length !== state.plan.checkpoints.length || input.gracePeriodHours !== state.plan.gracePeriodHours ||
+          tasks.some((task) => !state.plan.tasks.some((old) => old.id === task.id && taskDefinition(old) === taskDefinition(task))) ||
+          checkpoints.some((checkpoint) => !state.plan.checkpoints.some((old) => old.id === checkpoint.id && checkpointDefinition(old) === checkpointDefinition(checkpoint)));
+        state.plan.pending = changed ? plan : null;
+      } else Object.assign(state.plan, plan);
       refreshPlan(state);
       return state.plan;
     }
     if (method === "POST" && route === "taskmap/agree") {
-      const { memberId, items } = body as { memberId: string; items?: PlanItemRef[] };
+      const parsed = AgreeBody.safeParse(body);
+      if (!parsed.success) return fail("Invalid agreement");
+      const { memberId, items } = parsed.data;
       findMember(state, memberId);
-      refreshPlan(state);
+      if (state.plan.active && !state.plan.pending) return state.plan;
+      const approvalPlan = state.plan.pending ?? state.plan;
       const requested = items ?? state.plan.waitingOn.filter((w) => w.memberIds.includes(memberId)).map((w) => w.item);
+      const targets: string[][] = [];
       for (const item of requested) {
         let approvals: string[];
-        if (item.kind === "grace") approvals = state.plan.graceApprovedBy;
+        if (item.kind === "grace") approvals = approvalPlan.graceApprovedBy;
         else {
-          const target = item.kind === "task" ? state.plan.tasks.find((t) => t.id === item.id) : state.plan.checkpoints.find((c) => c.id === item.id);
+          const target = item.kind === "task" ? approvalPlan.tasks.find((t) => t.id === item.id) : approvalPlan.checkpoints.find((c) => c.id === item.id);
           if (!target) return fail("Plan item not found", 404);
           if (target.ownerId && target.ownerId !== memberId) return fail("Only the owner can approve this item", 403);
           approvals = target.approvedBy;
         }
-        if (!approvals.includes(memberId)) approvals.push(memberId);
+        targets.push(approvals);
       }
+      for (const approvals of targets) if (!approvals.includes(memberId)) approvals.push(memberId);
       refreshPlan(state);
       return state.plan;
     }

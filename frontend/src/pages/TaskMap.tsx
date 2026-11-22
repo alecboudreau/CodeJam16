@@ -10,6 +10,12 @@ const inputClass = "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 
 const buttonClass = "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50";
 const editable = (plan: PlanDraft) => ({ tasks: plan.tasks, checkpoints: plan.checkpoints, gracePeriodHours: plan.gracePeriodHours });
 const editingCopy = (plan: Plan) => structuredClone(plan.pending ? { ...plan, ...plan.pending, pending: null } : plan);
+// Runtime progress and approval lists are server-owned; only compare the proposed definition.
+const definition = (plan: Pick<PlanDraft, "tasks" | "checkpoints" | "gracePeriodHours">) => JSON.stringify({
+  tasks: plan.tasks.map((task) => [task.id, task.title, task.description, task.points, task.ownerId, task.tracked, [...task.paths].sort(), [...task.dependsOn].sort()]).sort(),
+  checkpoints: plan.checkpoints.map((checkpoint) => [checkpoint.id, checkpoint.taskId, checkpoint.ownerId, Date.parse(checkpoint.dueAt), checkpoint.targetCompletion, checkpoint.criteria]).sort(),
+  gracePeriodHours: plan.gracePeriodHours,
+});
 const localDate = (iso: string) => {
   const date = new Date(iso);
   return Number.isFinite(date.getTime()) ? new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
@@ -129,8 +135,10 @@ function PlanEditor({ project, viewerId }: { project: Project; viewerId: string 
     setBusy(true);
     try {
       const plan = await api.updateTaskMap(project.id, input);
-      if (saved?.active && !plan.pending && plan.version <= saved.version) throw new Error("The API did not confirm a pending change or a new plan version. Your proposal is still unsaved here.");
+      const withdrawn = !!saved?.pending && !plan.pending && plan.version === saved.version && definition(input) === definition(saved) && definition(plan) === definition(saved);
+      if (saved?.active && !plan.pending && plan.version <= saved.version && !withdrawn) throw new Error("The API did not confirm a pending change or a new plan version. Your proposal is still unsaved here.");
       accept(plan, saved?.active ? "Proposed change saved. Only changed items need new approvals." : "Changes saved. Only changed items need new approvals.");
+      if (withdrawn) setNotice("Proposed change withdrawn. The current plan remains active.");
     }
     catch (error: unknown) {
       if (mounted.current) {

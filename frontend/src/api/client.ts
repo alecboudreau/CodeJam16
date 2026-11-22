@@ -133,6 +133,8 @@ export const api = {
   joinGroup: (input: { code: string; githubUsername: string }) => request<Project>("POST", "/me/projects/join", input),
   createProject: (input: CreateProjectInput) => request<Project>("POST", "/projects", input),
   getProject: (id: string) => request<Project>("GET", projectPath(id)),
+  addMember: (id: string, input: { name: string; githubUsername: string; email?: string }) =>
+    request<Member>("POST", `${projectPath(id)}/members`, input),
   addAlias: (id: string, memberId: string, githubLogin: string) =>
     request<Member>("POST", `${projectPath(id)}/members/${encodeURIComponent(memberId)}/aliases`, { githubLogin }),
   uploadSpec: (id: string, file: File) => {

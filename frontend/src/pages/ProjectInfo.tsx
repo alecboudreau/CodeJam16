@@ -135,6 +135,29 @@ export default function ProjectInfo() {
         {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
         {notice && <p role="status" className="contract-notice">{notice}</p>}
 
+        <form className="panel" onSubmit={addMember}>
+          <h2>Team</h2>
+          <ul className="divide-y divide-gray-200 border-y border-gray-200">
+            {project.members.map((member) => (
+              <li key={member.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5 text-sm">
+                <span className="font-medium">{member.name}</span>
+                <span className="text-gray-600">@{member.githubUsername}</span>
+              </li>
+            ))}
+          </ul>
+          {isDemoMode() ? (
+            <p className="mt-4 text-sm text-gray-600">The demo team is fixed. Sign in with your own account to add teammates to a group.</p>
+          ) : (<>
+          <h3 className="mt-6 text-sm font-semibold">Add a teammate</h3>
+          <div className="mt-3 grid gap-4 sm:grid-cols-3">
+            <label className={labelClass}>Name<input required className={inputClass} value={memberName} onChange={(event) => setMemberName(event.target.value)} /></label>
+            <label className={labelClass}>GitHub username<input required className={inputClass} value={memberGithub} onChange={(event) => setMemberGithub(event.target.value)} placeholder="octocat" spellCheck={false} /></label>
+            <label className={labelClass}>Email <span className="font-normal text-gray-500">(optional)</span><input type="email" className={inputClass} value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} /></label>
+          </div>
+          <button type="submit" className="btn btn-secondary mt-4">Add teammate</button>
+          </>)}
+        </form>
+
         <form className="panel" onSubmit={saveDeadline}>
           <h2>Deadline</h2>
           <div className="flex flex-wrap items-end gap-3">
@@ -163,29 +186,6 @@ export default function ProjectInfo() {
             <button type="submit" className="btn btn-primary mt-5">Add task</button>
           </form>
         </section>
-
-        <form className="panel" onSubmit={addMember}>
-          <h2>Team</h2>
-          <ul className="divide-y divide-gray-200 border-y border-gray-200">
-            {project.members.map((member) => (
-              <li key={member.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5 text-sm">
-                <span className="font-medium">{member.name}</span>
-                <span className="text-gray-600">@{member.githubUsername}</span>
-              </li>
-            ))}
-          </ul>
-          {isDemoMode() ? (
-            <p className="mt-4 text-sm text-gray-600">The demo team is fixed. Sign in with your own account to add teammates to a group.</p>
-          ) : (<>
-          <h3 className="mt-6 text-sm font-semibold">Add a teammate</h3>
-          <div className="mt-3 grid gap-4 sm:grid-cols-3">
-            <label className={labelClass}>Name<input required className={inputClass} value={memberName} onChange={(event) => setMemberName(event.target.value)} /></label>
-            <label className={labelClass}>GitHub username<input required className={inputClass} value={memberGithub} onChange={(event) => setMemberGithub(event.target.value)} placeholder="octocat" spellCheck={false} /></label>
-            <label className={labelClass}>Email <span className="font-normal text-gray-500">(optional)</span><input type="email" className={inputClass} value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} /></label>
-          </div>
-          <button type="submit" className="btn btn-secondary mt-4">Add teammate</button>
-          </>)}
-        </form>
       </>}
     </div>
   );

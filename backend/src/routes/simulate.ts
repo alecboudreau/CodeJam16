@@ -4,6 +4,7 @@ import { Router, type RequestHandler } from "express";
 import { SimulateBody } from "@enforcer/shared";
 import { getProject } from "../db/db";
 import { isSimulating, simulateDays } from "../demo/replay";
+import { discordAllowed } from "../demo/mode";
 
 export const simulateRouter = Router();
 
@@ -29,7 +30,7 @@ simulateRouter.post(
       res.status(409).json({ error: "a simulation is already running for this project" });
       return;
     }
-    const result = await simulateDays(project.id, days);
+    const result = await simulateDays(project.id, days, { discord: discordAllowed(req, project.id) });
     res.json({ checkinId: result.checkinId, days: result.days, checkins: result.checkins, skipped: result.skipped, commits: result.commitsFed });
   }),
 );

@@ -42,6 +42,8 @@ export async function act(opts: {
   decisions: StoredDecision[];
   now: Date;
   notify?: Notify;
+  /** false = Inbox only (the public demo without the presenter key, #76). */
+  discord?: boolean;
 }): Promise<ActResult> {
   const { projectId, checkinId, now } = opts;
   const members = new Map((await getMembers(projectId)).map((m) => [m.id, m]));
@@ -106,7 +108,8 @@ export async function act(opts: {
     // even when Discord can't deliver it. Discord is tried on top; discordSent records whether it got there.
     let discordSent = false;
     let discordProblem = "";
-    if (!notify) discordProblem = "Discord isn't set up yet";
+    if (opts.discord === false) discordProblem = "public demo, Discord is off without the presenter key";
+    else if (!notify) discordProblem = "Discord isn't set up yet";
     else if (to !== null && !to?.discordId) discordProblem = "hasn't linked Discord";
     else {
       try {

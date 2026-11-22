@@ -16,6 +16,7 @@ import { simulateRouter } from "./routes/simulate";
 import { discordRouter } from "./routes/discord";
 import { cronRouter } from "./routes/cron";
 import { inboxRouter } from "./routes/inbox";
+import { demoRouter } from "./routes/demo";
 
 export const app = express();
 
@@ -57,6 +58,7 @@ app.use("/api", reportRouter);
 app.use("/api", specRouter);
 app.use("/api", simulateRouter);
 app.use("/api", inboxRouter);
+app.use("/api", demoRouter);
 
 // Invalid bodies (zod) → 400 with the issues; anything else → 500.
 const onError: ErrorRequestHandler = (err, _req, res, _next) => {

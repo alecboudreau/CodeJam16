@@ -4,6 +4,7 @@ import { getCheckin, getCheckins, getProject } from "../db/db";
 import { CheckinError, startCheckin } from "../agent/loop";
 import { getTrace } from "../agent/trace";
 import { keepAlive } from "../platform";
+import { discordAllowed } from "../demo/mode";
 
 export const checkinRouter = Router();
 
@@ -17,7 +18,7 @@ checkinRouter.post(
   "/projects/:id/checkin",
   asyncRoute(async (req, res) => {
     try {
-      const { checkinId, done } = await startCheckin(req.params.id, { kind: "manual" });
+      const { checkinId, done } = await startCheckin(req.params.id, { kind: "manual", discord: discordAllowed(req, req.params.id) });
       keepAlive(done); // on Vercel, keeps the function running after the response
       res.status(202).json({ checkinId });
     } catch (e) {

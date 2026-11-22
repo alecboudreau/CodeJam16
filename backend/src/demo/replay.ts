@@ -75,7 +75,7 @@ export const isSimulating = (projectId: string): boolean => simulating.has(proje
  * Runs `days` simulated days. Starts on the day of the first replay commit, or the day after the
  * demo clock if a simulation already ran, so pressing Simulate again continues the story.
  */
-export async function simulateDays(projectId: string, days: number, opts: { notify?: Notify; commits?: ReplayCommit[] } = {}): Promise<SimulateResult> {
+export async function simulateDays(projectId: string, days: number, opts: { notify?: Notify; commits?: ReplayCommit[]; discord?: boolean } = {}): Promise<SimulateResult> {
   const project = await getProject(projectId);
   if (!project) throw new Error("project not found");
   if (simulating.has(projectId)) throw new Error("a simulation is already running for this project");
@@ -101,7 +101,7 @@ export async function simulateDays(projectId: string, days: number, opts: { noti
           }
         }
         await updateProjectPlanState(projectId, { demoNow: at.toISOString() });
-        const checkinId = await runCheckin(projectId, { kind: slot.kind, skipGitHub: true, notify: opts.notify });
+        const checkinId = await runCheckin(projectId, { kind: slot.kind, skipGitHub: true, notify: opts.notify, discord: opts.discord });
         result.checkins++;
         if ((await getCheckin(checkinId))?.skipped) result.skipped++;
         if (slot.kind === "simulate") result.checkinId = checkinId;

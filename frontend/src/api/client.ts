@@ -4,6 +4,7 @@ import type {
 } from "@enforcer/shared";
 import { mockRequest } from "./mock";
 import { accessToken } from "../auth/supabase";
+import { isDemoMode, presenterKey } from "../demo";
 
 export const useMocks = import.meta.env.VITE_USE_MOCKS === "true";
 const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:3001/api").replace(/\/$/, "");
@@ -80,7 +81,8 @@ function member(projectId: string, memberId = getViewerId(projectId)): string {
 /** Authorization header for the signed-in user (empty when sign-in is off or nobody is signed in). */
 export async function authHeaders(): Promise<Record<string, string>> {
   const token = await accessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const key = isDemoMode() ? presenterKey() : "";
+  return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(key ? { "X-Demo-Presenter-Key": key } : {}) };
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -115,6 +117,8 @@ const projectPath = (id: string) => `/projects/${encodeURIComponent(id)}`;
 // Pages use the same methods in mock and live mode. Identity defaults to the picker.
 export const api = {
   getAuthConfig: () => request<{ enabled: boolean }>("GET", "/auth/config"),
+  resetDemo: () => request<{ projectId: string }>("POST", "/demo/reset"),
+  getPresenterStatus: () => request<{ presenter: boolean }>("GET", "/demo/presenter"),
   getMe: (id: string) => request<Member>("GET", `${projectPath(id)}/me`),
   createProject: (input: CreateProjectInput) => request<Project>("POST", "/projects", input),
   getProject: (id: string) => request<Project>("GET", projectPath(id)),

@@ -73,7 +73,7 @@ export async function judgeCommits(opts: {
     const judgments = commits.map((c) =>
       toJudgment({ sha: c.sha, taskId: null, kind: "light", completionDelta: 0, confidence: 1, reason: "No tracked task to match" }, "small"),
     ).map((j) => ({ ...j, model: "none" as const }));
-    for (const j of judgments) upsertJudgment(projectId, j, checkinId);
+    for (const j of judgments) await upsertJudgment(projectId, j, checkinId);
     return { judgments, smallCalls: 0, escalated: [] };
   }
 
@@ -96,7 +96,7 @@ export async function judgeCommits(opts: {
   }
 
   const judgments = commits.map((c) => bySha.get(c.sha)!);
-  for (const j of judgments) upsertJudgment(projectId, j, checkinId);
+  for (const j of judgments) await upsertJudgment(projectId, j, checkinId);
   return { judgments, smallCalls, escalated: unsure.map((c) => c.sha) };
 }
 
@@ -135,8 +135,8 @@ export async function rejudgeJudgment(opts: {
   files: DisputeFile[];
 }): Promise<{ judgment: Judgment; before: string; after: string; reason: string }> {
   const { judgment: j, dispute } = opts;
-  const raw = getRawCommit(j.sha);
-  const task = j.taskId ? getTask(j.taskId) : undefined;
+  const raw = await getRawCommit(j.sha);
+  const task = j.taskId ? await getTask(j.taskId) : undefined;
   const { system, user } = buildJudgmentDisputePrompt({
     task,
     change: { sha: j.sha, authors: [], files: raw?.files ?? [], diff: raw?.diff ?? "" },
@@ -154,7 +154,7 @@ export async function rejudgeJudgment(opts: {
     model: "big",
     reason: out.reason,
   };
-  upsertJudgment(opts.projectId, updated, opts.checkinId);
+  await upsertJudgment(opts.projectId, updated, opts.checkinId);
   return {
     judgment: updated,
     before: `${j.kind}, ${pct(judgedDelta(j))}`,
@@ -175,9 +175,9 @@ export async function rejudgeCheckpoint(opts: {
   files: DisputeFile[];
 }): Promise<{ before: string; after: string; reason: string }> {
   const { checkpoint: c, dispute } = opts;
-  const task = getTask(c.taskId);
+  const task = await getTask(c.taskId);
   if (!task) throw new Error("the checkpoint's task no longer exists");
-  const judgments = getJudgments(opts.projectId).filter((j) => j.taskId === task.id);
+  const judgments = (await getJudgments(opts.projectId)).filter((j) => j.taskId === task.id);
   const { system, user } = buildCheckpointDisputePrompt({
     task,
     checkpoint: c,
@@ -190,7 +190,7 @@ export async function rejudgeCheckpoint(opts: {
   const target = out.met ? Math.max(out.completion, c.targetCompletion) : out.completion;
   const extra = Math.max(0, Math.min(1, target) - task.completion);
   if (extra > 0) {
-    upsertJudgment(
+    await upsertJudgment(
       opts.projectId,
       {
         sha: `dispute:${dispute.id}`,

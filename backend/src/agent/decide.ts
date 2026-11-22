@@ -23,24 +23,22 @@ const DAY_MS = 24 * 3600_000;
 const DM_ACTIONS = new Set<Decision["action"]>(["nudge", "nudge_blocker"]);
 
 /** Runs Steps B and C for one check-in, stores every decision, and returns them (act sends them). */
-export function decide(projectId: string, checkinId: string, now: Date): StoredDecision[] {
-  const members = getMembers(projectId);
-  const tasks = new Map<string, Task>(getTasks(projectId).map((t) => [t.id, t]));
+export async function decide(projectId: string, checkinId: string, now: Date): Promise<StoredDecision[]> {
+  const members = await getMembers(projectId);
+  const tasks = new Map<string, Task>((await getTasks(projectId)).map((t) => [t.id, t]));
   const memberById = new Map<string, Member>(members.map((m) => [m.id, m]));
-  const disputed = getOpenDisputeCheckpointIds(projectId);
+  const disputed = await getOpenDisputeCheckpointIds(projectId);
   const nowMs = now.getTime();
   const cooldownMs = rules.NUDGE_COOLDOWN_DAYS * DAY_MS;
 
   // The previous check-in (this one isn't finished yet): used for the grace pause and "pressed since".
-  const lastCheckinMs = (() => {
-    const last = getLastCompletedCheckin(projectId);
-    const t = last ? new Date(last.startedAt).getTime() : nowMs;
-    return t < nowMs ? t : nowMs;
-  })();
+  const last = await getLastCompletedCheckin(projectId);
+  const lastStartMs = last ? new Date(last.startedAt).getTime() : nowMs;
+  const lastCheckinMs = lastStartMs < nowMs ? lastStartMs : nowMs;
 
   // Last private DM per member, for the cooldown.
   const lastDmMs = new Map<string, number>();
-  for (const d of getSentDecisions(projectId)) {
+  for (const d of await getSentDecisions(projectId)) {
     if (d.memberId && d.sentAt && DM_ACTIONS.has(d.action)) {
       lastDmMs.set(d.memberId, Math.max(lastDmMs.get(d.memberId) ?? 0, new Date(d.sentAt).getTime()));
     }
@@ -51,7 +49,7 @@ export function decide(projectId: string, checkinId: string, now: Date): StoredD
   const label = (c: Checkpoint) => `'${c.criteria}' (${tasks.get(c.taskId)?.title ?? "task"})`;
   const name = (id: string) => memberById.get(id)?.name ?? "someone";
 
-  const open = getCheckpoints(projectId)
+  const open = (await getCheckpoints(projectId))
     .filter((c) => c.status === "missed" || c.status === "alerted")
     .sort((a, b) => new Date(a.graceEndsAt ?? a.dueAt).getTime() - new Date(b.graceEndsAt ?? b.dueAt).getTime());
 
@@ -60,7 +58,7 @@ export function decide(projectId: string, checkinId: string, now: Date): StoredD
   const blockerNudged = new Set<string>();
   const helpPosted = new Set<string>();
 
-  return tx(() => {
+  return tx(async () => {
     // ---------- Step B: per missed / alerted checkpoint ----------
     for (const c of open) {
       const who = responsibleFor(c);
@@ -77,7 +75,7 @@ export function decide(projectId: string, checkinId: string, now: Date): StoredD
       if (member?.status === "blocked" && member.blockedById) {
         if (c.status === "missed" && c.graceEndsAt) {
           const paused = new Date(new Date(c.graceEndsAt).getTime() + (nowMs - lastCheckinMs)).toISOString();
-          upsertCheckpoint(projectId, { ...c, graceEndsAt: paused });
+          await upsertCheckpoint(projectId, { ...c, graceEndsAt: paused });
           c.graceEndsAt = paused;
         }
         decisions.push({ memberId: who, checkpointId: c.id, action: "wait", reason: `${name(who)} blocked by ${name(member.blockedById)} on ${label(c)}: grace clock paused` });
@@ -98,13 +96,13 @@ export function decide(projectId: string, checkinId: string, now: Date): StoredD
       if (member?.status === "need_help" && member.statusAt && new Date(member.statusAt).getTime() >= lastCheckinMs && !helpPosted.has(who)) {
         helpPosted.add(who);
         decisions.push({ memberId: who, checkpointId: c.id, action: "help_post", reason: `${name(who)} asked for help on ${label(c)}` });
-        setMemberStatus(who, "none");
+        await setMemberStatus(who, "none");
         member.status = "none";
       }
 
       // 4. grace expired → one team alert
       if (c.status === "missed" && c.graceEndsAt && nowMs >= new Date(c.graceEndsAt).getTime()) {
-        upsertCheckpoint(projectId, { ...c, status: "alerted" });
+        await upsertCheckpoint(projectId, { ...c, status: "alerted" });
         c.status = "alerted";
         decisions.push({ memberId: null, checkpointId: c.id, action: "team_alert", reason: `${label(c)} still unmet after the grace period` });
       }
@@ -145,6 +143,8 @@ export function decide(projectId: string, checkinId: string, now: Date): StoredD
       }
     }
 
-    return decisions.map((d) => ({ ...d, id: insertDecision(checkinId, d) }));
+    const stored: StoredDecision[] = [];
+    for (const d of decisions) stored.push({ ...d, id: await insertDecision(checkinId, d) });
+    return stored;
   });
 }

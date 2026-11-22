@@ -18,12 +18,12 @@ const asyncRoute =
 reportRouter.get(
   "/projects/:id/report",
   asyncRoute(async (req, res) => {
-    const project = getProject(req.params.id);
+    const project = await getProject(req.params.id);
     if (!project) {
       res.status(404).json({ error: "project not found" });
       return;
     }
-    const tasks = getTasks(project.id);
+    const tasks = await getTasks(project.id);
     if (tasks.length === 0) {
       res.status(409).json({ error: "there's no plan to report on yet" });
       return;
@@ -31,13 +31,13 @@ reportRouter.get(
 
     const nameOf = new Map(project.members.map((m) => [m.id, m.name]));
     const titleOf = new Map(tasks.map((t) => [t.id, t.title]));
-    const now = projectNow(project.id);
+    const now = await projectNow(project.id);
     const { system, user } = buildReportPrompt({
       projectName: project.name,
       today: now,
       deadline: project.deadline,
       tasks: tasks.map((t) => ({ title: t.title, tracked: t.tracked, ownerName: nameOf.get(t.ownerId) ?? "unassigned" })),
-      checkpoints: getCheckpoints(project.id).map((c) => ({
+      checkpoints: (await getCheckpoints(project.id)).map((c) => ({
         criteria: c.criteria,
         dueAt: c.dueAt,
         status: c.status,

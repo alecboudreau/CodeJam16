@@ -132,7 +132,7 @@ function Reminder({ item, teammates, disabled, onRespond }: {
 }
 
 export default function Inbox({ inbox }: { inbox: InboxState }) {
-  const { project, viewerId } = useProject();
+  const { project, viewerId, viewerLoading } = useProject();
   const [tab, setTab] = useState<"forYou" | "team">("forYou");
   const tabButtons = useRef<(HTMLButtonElement | null)[]>([]);
   const errorBox = useRef<HTMLDivElement>(null);
@@ -144,6 +144,7 @@ export default function Inbox({ inbox }: { inbox: InboxState }) {
     setTab(next === 0 ? "forYou" : "team"); tabButtons.current[next]?.focus();
   }
   if (!project) return <div className="mx-auto max-w-5xl"><h1 className="text-3xl font-semibold">Inbox</h1><p className="mt-4">Create a project in <Link to="/setup" className="text-blue-700 underline">Setup</Link> to view reminders.</p></div>;
+  if (viewerLoading) return <LoadingState message="Checking your project membership…" />;
   if (!viewerId) return <div className="mx-auto max-w-5xl"><h1 className="text-3xl font-semibold">Inbox</h1><p className="mt-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">Choose yourself in “Who are you?” to open your Inbox.</p></div>;
   const items = inbox.data?.[tab] ?? [];
   return <div className="mx-auto max-w-5xl space-y-6 pb-10">

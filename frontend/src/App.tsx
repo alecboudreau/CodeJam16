@@ -27,6 +27,7 @@ interface ProjectContextValue {
   project: Project | null;
   setProject: (project: Project | null) => void;
   viewerId: string;
+  viewerLoading: boolean;
   setViewerId: (memberId: string) => void;
   projectLoading: boolean;
   projectError: string;
@@ -37,13 +38,14 @@ const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 // ---------- sign-in (#62) ----------
 // The backend says whether sign-in is on (GET /auth/config), so the web app never needs its own setting.
-interface AuthValue { on: boolean; email: string }
-const AuthContext = createContext<AuthValue>({ on: false, email: "" });
+interface AuthValue { on: boolean; email: string; userId: string }
+const AuthContext = createContext<AuthValue>({ on: false, email: "", userId: "" });
 const useAuth = () => useContext(AuthContext);
 
 function AuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<"checking" | "off" | "signed-out" | "signed-in" | "error">(useMocks ? "off" : "checking");
   const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -55,9 +57,10 @@ function AuthGate({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (!enabled) { setState("off"); return; }
       if (!supabase) { setError("Sign-in is on, but VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY aren't set for the web app."); setState("error"); return; }
-      const apply = (session: { user: { email?: string } } | null) => {
+      const apply = (session: { user: { id: string; email?: string } } | null) => {
         if (cancelled) return;
         setEmail(session?.user.email ?? "");
+        setUserId(session?.user.id ?? "");
         setState(session ? "signed-in" : "signed-out");
       };
       apply((await supabase.auth.getSession()).data.session);
@@ -69,7 +72,7 @@ function AuthGate({ children }: { children: ReactNode }) {
   if (state === "checking") return <div className="p-8"><LoadingState message="Checking sign-in…" /></div>;
   if (state === "error") return <div className="p-8"><ErrorState title="Could not start the app" onRetry={() => setAttempt((n) => n + 1)} retryLabel="Retry"><p>{error}</p></ErrorState></div>;
   if (state === "signed-out") return <SignIn />;
-  return <AuthContext.Provider value={{ on: state === "signed-in", email }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ on: state === "signed-in", email, userId }}>{children}</AuthContext.Provider>;
 }
 
 // Later pages can adopt a created project and react to member changes.
@@ -86,7 +89,8 @@ function savedProjectId(): string {
 
 function ProjectProvider({ children }: { children: ReactNode }) {
   const [project, updateProject] = useState<Project | null>(null);
-  const [viewerId, updateViewerId] = useState("");
+  const [pickedViewerId, updateViewerId] = useState("");
+  const [verifiedViewer, setVerifiedViewer] = useState<{ identity: string; id: string } | null>(null);
   const [error, setError] = useState("");
   const [projectLoading, setProjectLoading] = useState(() => !!savedProjectId());
   const [attempt, setAttempt] = useState(0);
@@ -118,13 +122,22 @@ function ProjectProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [attempt]);
   const auth = useAuth();
+  const memberIdentity = auth.on && project ? JSON.stringify([auth.userId, project.id, attempt]) : "";
+  const viewerLoading = !!memberIdentity && verifiedViewer?.identity !== memberIdentity && !error;
+  const viewerId = auth.on ? verifiedViewer?.identity === memberIdentity ? verifiedViewer.id : "" : pickedViewerId;
   useEffect(() => {
-    if (!auth.on || !project) return;
+    if (!auth.on || !project || projectLoading) return;
     let cancelled = false;
-    api.getMe(project.id).then((me) => { if (!cancelled) { saveViewerId(project.id, me.id); updateViewerId(me.id); } })
+    setError("");
+    api.getMe(project.id).then((me) => {
+      if (cancelled) return;
+      if (!project.members.some((member) => member.id === me.id)) throw new Error("Your project membership changed. Retry to reload the team.");
+      saveViewerId(project.id, me.id);
+      setVerifiedViewer({ identity: memberIdentity, id: me.id });
+    })
       .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "Could not work out who you are in this project."); });
     return () => { cancelled = true; };
-  }, [auth.on, project?.id]);
+  }, [auth.on, auth.userId, project, projectLoading, attempt, memberIdentity]);
   const setViewerId = (id: string) => {
     if (!project || (id && !project.members.some((m) => m.id === id))) return;
     saveViewerId(project.id, id);
@@ -140,7 +153,7 @@ function ProjectProvider({ children }: { children: ReactNode }) {
     setAttempt((n) => n + 1);
   };
   return (
-    <ProjectContext.Provider value={{ project, setProject, viewerId, setViewerId, projectLoading, projectError: error, retryProject: () => setAttempt((n) => n + 1), openDemo }}>
+    <ProjectContext.Provider value={{ project, setProject, viewerId, viewerLoading, setViewerId, projectLoading, projectError: error, retryProject: () => { setProjectLoading(true); setAttempt((n) => n + 1); }, openDemo }}>
       {children}
     </ProjectContext.Provider>
   );

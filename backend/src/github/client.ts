@@ -84,3 +84,15 @@ export async function getFileContents(repo: string, path: string, ref?: string):
   if (data.type !== "file" || !("content" in data)) return [];
   return [{ path: data.path, content: Buffer.from(data.content, "base64").toString("utf8") }];
 }
+
+/**
+ * Every file path on the repo's default branch (one recursive tree call), capped at `limit`.
+ * Used when re-planning from an updated spec, so the model can see what already exists.
+ */
+export async function listRepoFiles(repo: string, limit = 600): Promise<{ paths: string[]; truncated: boolean }> {
+  const where = splitRepo(repo);
+  const { data: info } = await gh().rest.repos.get(where);
+  const { data } = await gh().rest.git.getTree({ ...where, tree_sha: info.default_branch, recursive: "true" });
+  const paths = data.tree.filter((entry) => entry.type === "blob" && entry.path).map((entry) => entry.path!);
+  return { paths: paths.slice(0, limit), truncated: data.truncated || paths.length > limit };
+}

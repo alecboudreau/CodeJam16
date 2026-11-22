@@ -139,6 +139,17 @@ const STEPS: Step[] = [
     run: (ctx) => ctx.go("/trace"),
   },
   {
+    title: "Also built",
+    story: [
+      "Real teams sign in with Discord or email, join with an invite code, and see all their work in one place.",
+      "The AI drafts the first plan from the assignment. If the assignment changes, it checks what's already built and suggests updates; only the people affected sign again.",
+      "Reminders come on Discord with one-tap answers, check-ins run on their own every evening, and it works on phones.",
+    ],
+    action: "Continue",
+    does: "Just moves on to the wrap-up.",
+    run: () => {},
+  },
+  {
     title: "Wrap up",
     story: [
       "It uses AI only when needed, keeps your evidence private, and gets the team talking before it's too late. One click also writes a neutral status report for the team.",

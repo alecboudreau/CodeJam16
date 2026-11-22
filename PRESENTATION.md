@@ -119,6 +119,16 @@ The table below is the same story if you'd rather drive by hand.
 
 ---
 
+## 5b. Also built (not shown in the demo, ~25 seconds)
+
+The guide has an **Also built** step just before the wrap-up. Say the three lines; if a judge asks, here's the detail:
+
+- **Groups for real teams.** Sign in with Discord or an email link. Each group has an invite code; teammates join with it, and any member can add someone later. The sidebar switches between groups, and **My work** lists your open tasks from every group, soonest due first.
+- **Plan from the assignment.** Upload the spec (PDF, Word or Markdown) and the big model drafts tasks, owners and checkpoints once; a loading screen explains each stage. **Project info** lets the team edit dates, tasks and teammates.
+- **Changes need consent.** Anyone can **Suggest a change**; only the people whose part changed sign again, and the current contract stays in effect meanwhile. **Updated spec:** upload a new version and the AI compares it with what's already built (each task's progress plus the repo's file list) and proposes an update: new tasks, changed ones, removed unstarted ones, owners rebalanced only if needed. Work with progress is never dropped.
+- **Discord, hands-free.** Everyone opts in with `/link <github-username>`. Reminders arrive as DMs with **On it / Blocked / Need help** buttons, and everything is mirrored in the app's **Inbox**. Check-ins run on their own every evening at 6, plus every 6 hours when something is due soon (Supabase scheduler). GitHub push webhooks bring commits in as they land.
+- **Fair and private.** Only you see your own evidence (enforced by the server, not just hidden in the page). `Co-authored-by` commits credit everyone on them. The status report downloads as Markdown. It installs on a phone like an app.
+
 ## 6. Demo data (so you know the story)
 
 - **Alex:** big commits, finished the payment API, but *Payment history endpoint* is still open.

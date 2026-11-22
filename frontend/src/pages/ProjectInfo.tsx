@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { Checkpoint, Task, TaskMap } from "@enforcer/shared";
-import { api, type TaskEdit } from "../api/client";
+import { Link } from "react-router-dom";
+import { api, type ReplanResult, type TaskEdit } from "../api/client";
 import { useProject } from "../App";
 import { EmptyState } from "../components/Enforcer";
 import { ErrorState, LoadingState } from "../components/PageFeedback";
-import { isDemoMode } from "../demo";
+import { isDemoMode, presenterKey } from "../demo";
 import Icon from "../components/Icon";
 
 const points = [1, 2, 3, 5, 8, 13] as const;
@@ -35,6 +36,9 @@ export default function ProjectInfo() {
   const [memberName, setMemberName] = useState("");
   const [memberGithub, setMemberGithub] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
+  const [specFile, setSpecFile] = useState<File | null>(null);
+  const [replanStep, setReplanStep] = useState<"" | "upload" | "think">("");
+  const [replan, setReplan] = useState<ReplanResult | null>(null);
   const [draft, setDraft] = useState<TaskEdit>({ title: "", description: "", points: 1, ownerId: "", paths: [], tracked: true });
 
   useEffect(() => {
@@ -106,6 +110,27 @@ export default function ProjectInfo() {
     }
   }
 
+  async function updateFromSpec(event: FormEvent) {
+    event.preventDefault();
+    if (!specFile || replanStep) return;
+    setNotice("");
+    setError("");
+    setReplan(null);
+    try {
+      setReplanStep("upload");
+      await api.uploadSpec(project!.id, specFile);
+      setReplanStep("think");
+      const result = await api.replanFromSpec(project!.id);
+      setPlan(result.taskMap);
+      setReplan(result);
+      setSpecFile(null);
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "Could not update the plan from that spec.");
+    } finally {
+      setReplanStep("");
+    }
+  }
+
   async function addMember(event: FormEvent) {
     event.preventDefault();
     setNotice("");
@@ -158,6 +183,41 @@ export default function ProjectInfo() {
           <button type="submit" className="btn btn-secondary mt-4">Add teammate</button>
           </>)}
         </form>
+
+        {(!isDemoMode() || presenterKey()) && (
+          <form className="panel" onSubmit={updateFromSpec} aria-busy={!!replanStep}>
+            <h2>Updated spec</h2>
+            <p className="text-sm leading-6 text-gray-600">
+              Requirements changed? Upload the new version. The AI compares it with the work already done (each task&apos;s progress and the files in the repo) and proposes an updated plan: new tasks, changed ones, and who owns what. Nothing changes until the people affected sign it on the team contract.
+            </p>
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <label className={`${labelClass} w-full max-w-sm`}>Spec file (PDF, Word or Markdown)
+                <input required type="file" accept=".pdf,.docx,.md,.markdown" className={`${inputClass} file:mr-3 file:rounded file:border-0 file:bg-transparent file:font-medium`} disabled={!!replanStep} onChange={(event) => setSpecFile(event.target.files?.[0] ?? null)} />
+              </label>
+              <button type="submit" className="btn btn-primary" disabled={!specFile || !!replanStep}>
+                {replanStep === "upload" ? "Uploading…" : replanStep === "think" ? "Comparing with the work done…" : "Upload and update the plan"}
+              </button>
+            </div>
+            {replanStep === "think" && <p role="status" className="mt-3 text-sm text-gray-600">Reading the new spec, the progress on every task and the repo&apos;s files. This can take up to a minute.</p>}
+            {replan && (
+              <div role="status" className="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+                <p className="font-medium">{replan.summary}</p>
+                {replan.changes.length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {replan.changes.map((change) => (
+                      <li key={`${change.kind}:${change.title}`}>
+                        <span className={`contract-changed ml-0 mr-2 ${change.kind === "removed" ? "line-through" : ""}`}>{change.kind === "new" ? "New" : change.kind === "changed" ? "Changed" : "Removed"}</span>
+                        <strong>{change.title}</strong>
+                        {change.reason && <span className="text-gray-600"> · {change.reason}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Link to="/taskmap" className="mt-3 inline-block font-semibold text-blue-700 underline">Review and sign it on the team contract</Link>
+              </div>
+            )}
+          </form>
+        )}
 
         <form className="panel" onSubmit={saveDeadline}>
           <h2>Deadline</h2>

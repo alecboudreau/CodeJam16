@@ -42,6 +42,9 @@ export interface TaskEdit {
   tracked: boolean;
 }
 
+export interface PlanChange { kind: "new" | "changed" | "removed"; title: string; reason: string }
+export interface ReplanResult { taskMap: TaskMap; summary: string; changes: PlanChange[] }
+
 export interface GroupSummary {
   id: string;
   name: string;
@@ -157,6 +160,8 @@ export const api = {
     return request<{ chars: number }>("POST", `${projectPath(id)}/spec`, body);
   },
   generateTaskMap: (id: string) => request<TaskMap>("POST", `${projectPath(id)}/taskmap/generate`),
+  // After a new version of the spec: the AI proposes an updated plan as a change the team signs.
+  replanFromSpec: (id: string) => request<ReplanResult>("POST", `${projectPath(id)}/taskmap/replan`),
   getTaskMap: (id: string) => request<TaskMap>("GET", `${projectPath(id)}/taskmap`),
   updateTaskMap: (id: string, input: UpdatePlanInput) => request<TaskMap>("PUT", `${projectPath(id)}/taskmap`, input),
   setDeadline: (id: string, at: string) => request<Project>("PUT", `${projectPath(id)}/deadline`, { at }),

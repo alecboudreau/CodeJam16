@@ -190,7 +190,7 @@ export default function Setup() {
     <div className="page-stack setup-page">
       <header className="page-heading">
         <div>
-          <h1>Set up your project</h1>
+          <h1>Create a group</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
             Add your repositories, requirements, and team. We’ll draft tasks and
             checkpoints for everyone to review and approve.

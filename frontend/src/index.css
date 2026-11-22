@@ -445,9 +445,6 @@
   color: #fff;
   font-weight: 600;
 }
-.nav-item:last-child {
-  margin-top: 16px;
-}
 .nav-count {
   margin-left: auto;
   font-size: 0.75rem;
@@ -1186,9 +1183,6 @@
   .workspace-rail.is-open .workspace-nav {
     display: grid;
     grid-template-columns: 1fr 1fr;
-  }
-  .nav-item:last-child {
-    margin-top: 0;
   }
   .brand-caption {
     font-size: 0.75rem;

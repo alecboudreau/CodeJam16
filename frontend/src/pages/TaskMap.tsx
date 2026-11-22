@@ -89,7 +89,7 @@ export default function TaskMap() {
         </header>
         <EmptyState
           title="Start with a plan worth keeping."
-          action={{ to: "/setup", label: "Set up a project" }}
+          action={{ to: "/groups", label: "Go to your groups" }}
         >
           <p>
             Add your requirements and team. Everyone will review their own tasks
@@ -502,7 +502,7 @@ function PlanEditor({
                   There is no draft yet. Upload your specification and generate
                   a plan in{" "}
                   <Link to="/setup" className="text-blue-700 underline">
-                    Setup
+                    group setup
                   </Link>
                   .
                 </p>

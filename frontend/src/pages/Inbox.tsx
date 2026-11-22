@@ -413,7 +413,7 @@ export default function Inbox({ inbox }: { inbox: InboxState }) {
         </header>
         <EmptyState
           title="A place to keep things moving."
-          action={{ to: "/setup", label: "Set up a project" }}
+          action={{ to: "/groups", label: "Go to your groups" }}
         >
           <p>
             Once your plan is active, your reminders and the team's requests for

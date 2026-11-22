@@ -109,7 +109,7 @@ export default function Trace() {
         </header>
         <EmptyState
           title="Nothing to check. Yet."
-          action={{ to: "/setup", label: "Set up a project" }}
+          action={{ to: "/groups", label: "Go to your groups" }}
         >
           <p>
             Create a project and agree on a plan. Each check-in will show how

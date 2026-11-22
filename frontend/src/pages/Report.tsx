@@ -161,7 +161,7 @@ export default function Report() {
         </header>
         <EmptyState
           title="The story starts with a plan."
-          action={{ to: "/setup", label: "Set up a project" }}
+          action={{ to: "/groups", label: "Go to your groups" }}
         >
           <p>
             Once your project is set up, generate a neutral summary of tasks and

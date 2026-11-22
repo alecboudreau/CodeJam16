@@ -6,6 +6,7 @@ import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import type { Member } from "@enforcer/shared";
 import { config } from "../config";
 import { getMembers, getProject } from "../db/db";
+import { isDemoPath, isDemoProject } from "../demo/mode";
 
 export const authEnabled = (): boolean => Boolean(config.supabaseUrl) && !config.authDisabled;
 
@@ -53,7 +54,7 @@ declare module "express-serve-static-core" {
 
 /** Requires a valid Supabase token on every /api request except health checks and webhooks. */
 export const requireSignIn: RequestHandler = (req, res, next) => {
-  if (!authEnabled() || req.path === "/health" || req.path === "/auth/config" || req.path.startsWith("/webhook") || req.path.startsWith("/discord/") || req.path.startsWith("/cron/")) {
+  if (!authEnabled() || req.path === "/health" || req.path === "/auth/config" || req.path.startsWith("/webhook") || req.path.startsWith("/discord/") || req.path.startsWith("/cron/") || isDemoPath(req.path)) {
     next();
     return;
   }
@@ -81,6 +82,11 @@ export async function requireMember(req: Request, res: Response, next: NextFunct
     return;
   }
   const projectId = req.params.id;
+  // The demo project is public (#76): no membership check; the "Who are you?" picker picks the viewer.
+  if (isDemoProject(projectId)) {
+    next();
+    return;
+  }
   if (!(await getProject(projectId))) {
     next(); // the route answers 404
     return;

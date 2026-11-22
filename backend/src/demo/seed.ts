@@ -14,7 +14,8 @@ import { config, ROOT_DIR } from "../config";
 import { closeDb, dbAll, dbGet, dbRun, initDb, insertMember, nowIso, setMemberDiscordId, tx, updateProjectPlanState, upsertCheckpoint, upsertTask } from "../db/db";
 import { zonedInstant } from "./replay";
 
-export const DEMO_PROJECT_ID = "demo-paylite";
+import { DEMO_PROJECT_ID } from "./mode";
+export { DEMO_PROJECT_ID };
 
 const MEMBERS: (MemberInput & { key: string })[] = [
   { key: "alex", name: "Alex", githubUsername: "alex-demo", capacityHoursPerWeek: 8 },
@@ -75,8 +76,9 @@ async function wipeDemoProject(): Promise<void> {
   await dbRun("DELETE FROM projects WHERE id = ?", DEMO_PROJECT_ID);
 }
 
-export async function seedDemo(discordId?: string): Promise<{ projectId: string; discordId?: string }> {
-  await initDb();
+/** `init: false` skips creating tables (they already exist on Vercel, where schema.sql isn't bundled). */
+export async function seedDemo(discordId?: string, opts: { init?: boolean } = {}): Promise<{ projectId: string; discordId?: string }> {
+  if (opts.init !== false) await initDb();
   const presenter = discordId ?? (await lastLinkedDiscordId());
   const specText = readFileSync(resolve(ROOT_DIR, "demo/spec.md"), "utf8");
 

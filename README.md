@@ -690,7 +690,7 @@ VITE_USE_MOCKS=true
 
 1. **Hook:** "Raise your hand if you've had a teammate go quiet and nobody wanted to say anything."
 2. **Problem:** by the time it comes up, it's too late. Commit counts don't help: they're easy to game and they turn teammates against each other.
-3. **Live** (prepared with `npm run demo:seed`, so the plan is already approved and the demo clock sits at Sat Nov 7):
+3. **Live** at **`/demo`** (e.g. https://codejam16.vercel.app/demo): no sign-in, the "Who are you?" picker, and a **Reset demo** button that puts the plan back to approved with the clock at Sat Nov 7. On the presenter's laptop, open **`/demo?key=<DEMO_PRESENTER_KEY>`** once so the Discord messages actually go out; for everyone else the demo runs with messages in the Inbox and trace only. The normal app at `/` keeps sign-in on and only ever shows real projects.
    - *Optional opener:* show Setup + Task map. Upload `demo/spec.md` → the plan appears with points, checkpoints every few days, slides marked *untracked*, a 48-hour grace period, and per-item "I agree"
    - Click **Simulate 1 week** (Sun Nov 8 → Sat Nov 14). The Trace page opens on Saturday's check-in:
      *Pulled 4 commits → filtered 3 with no AI → small model judged 1 → "Dashboard shows the payment list" (Sam) missed → private DM sent*

@@ -169,6 +169,8 @@ One click produces a **neutral status summary** for the team: for each task and 
 
 **Sign-in (#62): Supabase Auth.** With `SUPABASE_URL` set, members sign in with **Discord** (the account they `/link`ed) or an **email link**. The backend verifies the Supabase token (ES256, via Supabase's public signing keys) and works out which member you are in each project: Discord account first, then email. It **overwrites** any `viewerId` / `memberId` the browser sends, and non-members get 403. So owner-only evidence is now enforced by the server. Creating a project requires adding yourself with the email you signed in with. **`AUTH_DISABLED=true`** brings back the "Who are you?" picker for local demos (all four demo members share the presenter's Discord account); never set it in production.
 
+**Email nudges (C10):** Members with an email and no Discord link receive private reminders through [Resend](https://resend.com/docs/api-reference/emails/send-email). Set server-only `RESEND_API_KEY`, `EMAIL_FROM` (a sender on a verified domain), and `FRONTEND_URL` (the deployed app URL). Email reminders point to the app's Inbox for **On it / Blocked / Need help** responses; email replies aren't handled. Linked members keep receiving Discord DMs, and team posts stay on Discord. Failed delivery still leaves the reminder in Inbox. Public demo check-ins without the presenter key send neither email nor Discord messages.
+
 ---
 
 ## 5. Repo structure

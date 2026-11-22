@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Checkpoint, MemberInput, Task } from "@enforcer/shared";
 import { config, ROOT_DIR } from "../config";
-import { db, initDb, insertMember, nowIso, tx, updateProjectPlanState, upsertCheckpoint, upsertTask } from "../db/db";
+import { closeDb, dbAll, dbGet, dbRun, initDb, insertMember, nowIso, setMemberDiscordId, tx, updateProjectPlanState, upsertCheckpoint, upsertTask } from "../db/db";
 import { zonedInstant } from "./replay";
 
 export const DEMO_PROJECT_ID = "demo-paylite";
@@ -54,63 +54,65 @@ function discordIdFromArgs(): string | undefined {
 }
 
 /** Whoever ran /link most recently in any project (the presenter, usually). */
-function lastLinkedDiscordId(): string | undefined {
-  const row = db
-    .prepare("SELECT discord_id FROM members WHERE discord_id IS NOT NULL AND project_id != ? ORDER BY rowid DESC LIMIT 1")
-    .get(DEMO_PROJECT_ID) as { discord_id: string } | undefined;
+async function lastLinkedDiscordId(): Promise<string | undefined> {
+  const row = await dbGet<{ discord_id: string }>(
+    "SELECT discord_id FROM members WHERE discord_id IS NOT NULL AND project_id != ? ORDER BY seq DESC LIMIT 1",
+    DEMO_PROJECT_ID,
+  );
   return row?.discord_id;
 }
 
 /** Deletes the demo project and everything that belongs to it. */
-function wipeDemoProject(): void {
-  const checkins = (db.prepare("SELECT id FROM checkins WHERE project_id = ?").all(DEMO_PROJECT_ID) as { id: string }[]).map((r) => r.id);
+async function wipeDemoProject(): Promise<void> {
+  const checkins = (await dbAll<{ id: string }>("SELECT id FROM checkins WHERE project_id = ?", DEMO_PROJECT_ID)).map((r) => r.id);
   for (const id of checkins) {
-    db.prepare("DELETE FROM trace_steps WHERE checkin_id = ?").run(id);
-    db.prepare("DELETE FROM decisions WHERE checkin_id = ?").run(id);
+    await dbRun("DELETE FROM trace_steps WHERE checkin_id = ?", id);
+    await dbRun("DELETE FROM decisions WHERE checkin_id = ?", id);
   }
   for (const table of ["checkins", "llm_calls", "disputes", "judgments", "raw_commits", "checkpoints", "tasks", "members"]) {
-    db.prepare(`DELETE FROM ${table} WHERE project_id = ?`).run(DEMO_PROJECT_ID);
+    await dbRun(`DELETE FROM ${table} WHERE project_id = ?`, DEMO_PROJECT_ID);
   }
-  db.prepare("DELETE FROM projects WHERE id = ?").run(DEMO_PROJECT_ID);
+  await dbRun("DELETE FROM projects WHERE id = ?", DEMO_PROJECT_ID);
 }
 
-export function seedDemo(discordId?: string): { projectId: string; discordId?: string } {
-  initDb();
-  const presenter = discordId ?? lastLinkedDiscordId();
+export async function seedDemo(discordId?: string): Promise<{ projectId: string; discordId?: string }> {
+  await initDb();
+  const presenter = discordId ?? (await lastLinkedDiscordId());
   const specText = readFileSync(resolve(ROOT_DIR, "demo/spec.md"), "utf8");
 
-  tx(() => {
-    wipeDemoProject();
-    db.prepare("INSERT INTO projects (id, name, repos, deadline, created_at) VALUES (?, ?, ?, ?, ?)").run(
+  await tx(async () => {
+    await wipeDemoProject();
+    await dbRun(
+      "INSERT INTO projects (id, name, repos, deadline, created_at) VALUES (?, ?, ?, ?, ?)",
       DEMO_PROJECT_ID, "PayLite (demo)", JSON.stringify(["demo/paylite"]), "2026-12-04", nowIso(),
     );
 
     const memberId = new Map<string, string>();
     for (const m of MEMBERS) {
-      const created = insertMember(DEMO_PROJECT_ID, m);
+      const created = await insertMember(DEMO_PROJECT_ID, m);
       memberId.set(m.key, created.id);
-      if (presenter) db.prepare("UPDATE members SET discord_id = ? WHERE id = ?").run(presenter, created.id);
+      if (presenter) await setMemberDiscordId(created.id, presenter);
     }
     const everyone = [...memberId.values()];
 
     const taskId = (key: string) => `${DEMO_PROJECT_ID}-${key}`;
     for (const t of TASKS) {
       const owner = memberId.get(t.owner)!;
-      upsertTask(DEMO_PROJECT_ID, {
+      await upsertTask(DEMO_PROJECT_ID, {
         id: taskId(t.key), title: t.title, description: t.description, points: t.points, ownerId: owner,
         paths: t.paths, tracked: t.tracked, dependsOn: (t.dependsOn ?? []).map(taskId), completion: 0, approvedBy: [owner],
       });
     }
-    CHECKPOINTS.forEach(([task, owner, date, hour, target, criteria], i) => {
+    for (const [i, [task, owner, date, hour, target, criteria]] of CHECKPOINTS.entries()) {
       const ownerId = owner ? memberId.get(owner)! : null;
       const checkpoint: Checkpoint = {
         id: `${DEMO_PROJECT_ID}-cp${i + 1}`, taskId: taskId(task), ownerId, dueAt: zonedInstant(date, hour).toISOString(),
         targetCompletion: target, criteria, status: "pending", approvedBy: ownerId ? [ownerId] : everyone,
       };
-      upsertCheckpoint(DEMO_PROJECT_ID, checkpoint);
-    });
+      await upsertCheckpoint(DEMO_PROJECT_ID, checkpoint);
+    }
 
-    updateProjectPlanState(DEMO_PROJECT_ID, {
+    await updateProjectPlanState(DEMO_PROJECT_ID, {
       specText,
       gracePeriodHours: GRACE_HOURS,
       graceApprovedBy: everyone,
@@ -125,7 +127,7 @@ export function seedDemo(discordId?: string): { projectId: string; discordId?: s
 
 // Run directly: `npm run demo:seed`
 if (process.argv[1] && resolve(process.argv[1]).replace(/\.ts$/, "") === resolve(ROOT_DIR, "backend/src/demo/seed")) {
-  const { projectId, discordId } = seedDemo(discordIdFromArgs());
+  const { projectId, discordId } = await seedDemo(discordIdFromArgs());
   console.log(`Seeded "${projectId}" (PayLite demo): 4 members, approved plan, demo clock at Sat Nov 7 18:00 ${config.timezone}.`);
   console.log(
     discordId
@@ -133,4 +135,5 @@ if (process.argv[1] && resolve(process.argv[1]).replace(/\.ts$/, "") === resolve
       : "No Discord account found: run /link in Discord once (any project), or pass --discord <user-id>, then seed again.",
   );
   console.log(`\nTo open it in the web app (live mode), run this once in the browser console:\n  localStorage.setItem("enforcer:project:live", "${projectId}"); location.reload()`);
+  await closeDb();
 }

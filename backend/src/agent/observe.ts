@@ -18,20 +18,20 @@ export interface ObserveResult {
  * Diffs are stored in the GitHub client's format: one `diff --git a/X b/Y` header per file.
  */
 export async function observe(projectId: string, opts: { skipGitHub?: boolean } = {}): Promise<ObserveResult> {
-  const project = getProject(projectId);
+  const project = await getProject(projectId);
   if (!project) throw new Error(`project ${projectId} not found`);
 
   let fetched = 0;
   if (!opts.skipGitHub) {
     // GitHub filters `since` on the commit's author date, and a commit can be pushed days after it was
     // written, so look back a little further. Already-stored SHAs are skipped below.
-    const last = getLastCompletedCheckin(projectId)?.startedAt;
+    const last = (await getLastCompletedCheckin(projectId))?.startedAt;
     const since = last ? new Date(new Date(last).getTime() - SINCE_LOOKBACK_MS).toISOString() : undefined;
     for (const repo of project.repos) {
       for (const c of await listCommits(repo, since)) {
-        if (getRawCommit(c.sha)) continue; // `since` is inclusive; already stored
+        if (await getRawCommit(c.sha)) continue; // `since` is inclusive; already stored
         const { files, diff } = await getCommitDiff(repo, c.sha);
-        const stored = insertRawCommit(projectId, {
+        const stored = await insertRawCommit(projectId, {
           sha: c.sha,
           repo,
           authorLogin: c.authorLogin,
@@ -46,7 +46,7 @@ export async function observe(projectId: string, opts: { skipGitHub?: boolean } 
     }
   }
 
-  return { commits: getUnjudgedCommits(projectId), fetched, repos: project.repos };
+  return { commits: await getUnjudgedCommits(projectId), fetched, repos: project.repos };
 }
 
 /** `Co-authored-by: Name <email>` trailers → ["Name <email>", ...]. */

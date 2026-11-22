@@ -3,7 +3,7 @@
 // delivers it, and the decision is marked sent. Nothing here decides whether to send.
 import { NudgeLlmOutput } from "@enforcer/shared";
 import type { Member } from "@enforcer/shared";
-import { getCheckpoint, getMembers, getTask, markDecisionSent, db } from "../db/db";
+import { getCheckpoint, getMembers, getTask, markDecisionSent } from "../db/db";
 import { callSmall } from "../llm/client";
 import { buildNudgePrompt, type NudgeInput } from "../llm/prompts/nudge";
 import type { StoredDecision } from "./decide";
@@ -44,13 +44,13 @@ export async function act(opts: {
   notify?: Notify;
 }): Promise<ActResult> {
   const { projectId, checkinId, now } = opts;
-  const members = new Map(getMembers(projectId).map((m) => [m.id, m]));
+  const members = new Map((await getMembers(projectId)).map((m) => [m.id, m]));
   const notify = opts.notify ?? (await defaultNotify());
   const result: ActResult = { sent: [], notSent: [] };
 
   for (const d of opts.decisions.filter((x) => SENDING.has(x.action))) {
-    const checkpoint = d.checkpointId ? getCheckpoint(d.checkpointId) : undefined;
-    const task = checkpoint ? getTask(checkpoint.taskId) : undefined;
+    const checkpoint = d.checkpointId ? await getCheckpoint(d.checkpointId) : undefined;
+    const task = checkpoint ? await getTask(checkpoint.taskId) : undefined;
     if (!checkpoint || !task) {
       result.notSent.push(`${d.action}: checkpoint no longer exists`);
       continue;
@@ -93,11 +93,6 @@ export async function act(opts: {
         label = `team alert on '${checkpoint.criteria}'`;
     }
 
-    if (to !== null && !to?.discordId) {
-      result.notSent.push(`${label}: hasn't linked Discord`);
-      continue;
-    }
-
     let message: string;
     try {
       const { system, user } = buildNudgePrompt(input);
@@ -107,20 +102,23 @@ export async function act(opts: {
       continue;
     }
 
-    if (!notify) {
-      // Keep the wording so it can be shown, but don't claim it was sent.
-      db.prepare("UPDATE decisions SET message = ? WHERE id = ?").run(message, d.id);
-      result.notSent.push(`${label}: Discord isn't set up yet`);
-      continue;
+    // The in-app Inbox (#59) always gets the message, so it counts as sent (and starts the cooldown)
+    // even when Discord can't deliver it. Discord is tried on top; discordSent records whether it got there.
+    let discordSent = false;
+    let discordProblem = "";
+    if (!notify) discordProblem = "Discord isn't set up yet";
+    else if (to !== null && !to?.discordId) discordProblem = "hasn't linked Discord";
+    else {
+      try {
+        await notify(to, message, { buttons });
+        discordSent = true;
+      } catch (e) {
+        discordProblem = `Discord delivery failed (${(e as Error).message})`;
+      }
     }
-    try {
-      await notify(to, message, { buttons });
-      markDecisionSent(d.id, message, now.toISOString()); // the check-in's clock, so cooldowns work on the demo clock
-      result.sent.push(label);
-    } catch (e) {
-      db.prepare("UPDATE decisions SET message = ? WHERE id = ?").run(message, d.id);
-      result.notSent.push(`${label}: delivery failed (${(e as Error).message})`);
-    }
+    await markDecisionSent(d.id, message, now.toISOString(), discordSent); // the check-in's clock, so cooldowns work on the demo clock
+    if (discordSent) result.sent.push(label);
+    else result.notSent.push(`${label}: Inbox only, ${discordProblem}`);
   }
   return result;
 }

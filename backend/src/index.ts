@@ -1,53 +1,9 @@
-// Express app, mounts routes (owner: Person A).
-import express, { type ErrorRequestHandler } from "express";
-import cors from "cors";
-import { ZodError } from "zod";
+// Local server (owner: Person A): the API, plus the parts Vercel doesn't run (the always-on
+// Discord connection and node-cron). On Vercel, api/index.js serves app.ts instead.
+import { app } from "./app";
 import { config } from "./config";
-import { authRouter, requireMember, requireSignIn } from "./auth/auth";
 import { startBot } from "./discord/bot";
 import { startScheduler } from "./scheduler/cron";
-import { projectsRouter } from "./routes/projects";
-import { taskmapRouter } from "./routes/taskmap";
-import { checkinRouter } from "./routes/checkin";
-import { disputesRouter } from "./routes/disputes";
-import { dashboardRouter } from "./routes/dashboard";
-import { reportRouter } from "./routes/report";
-import { specRouter } from "./routes/spec";
-import { simulateRouter } from "./routes/simulate";
-
-const app = express();
-app.use(cors({ origin: config.frontendUrl }));
-app.use(express.json({ limit: "5mb" }));
-
-app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
-});
-
-// Sign-in (#62): every /api request needs a Supabase token when sign-in is on, and any
-// /api/projects/:id/... request must come from a member of that project.
-app.use("/api", requireSignIn);
-app.use("/api/projects/:id", requireMember);
-app.use("/api", authRouter);
-
-app.use("/api", projectsRouter);
-app.use("/api", taskmapRouter);
-app.use("/api", checkinRouter);
-app.use("/api", disputesRouter);
-app.use("/api", dashboardRouter);
-app.use("/api", reportRouter);
-app.use("/api", specRouter);
-app.use("/api", simulateRouter);
-
-// Invalid bodies (zod) → 400 with the issues; anything else → 500.
-const onError: ErrorRequestHandler = (err, _req, res, _next) => {
-  if (err instanceof ZodError) {
-    res.status(400).json({ error: "invalid request", issues: err.issues });
-    return;
-  }
-  console.error(err);
-  res.status(500).json({ error: err instanceof Error ? err.message : "internal error" });
-};
-app.use(onError);
 
 app.listen(config.port, () => {
   console.log(`backend listening on http://localhost:${config.port}`);

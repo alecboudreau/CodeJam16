@@ -36,8 +36,8 @@ export async function verifyToken(token: string): Promise<AuthUser> {
 }
 
 /** The member of `projectId` this user is: Discord account first, then email. */
-export function memberFor(projectId: string, user: AuthUser): Member | undefined {
-  const members = getMembers(projectId);
+export async function memberFor(projectId: string, user: AuthUser): Promise<Member | undefined> {
+  const members = await getMembers(projectId);
   return (
     (user.discordId ? members.find((m) => m.discordId === user.discordId) : undefined) ??
     (user.email ? members.find((m) => m.email && m.email.toLowerCase() === user.email!.toLowerCase()) : undefined)
@@ -53,7 +53,7 @@ declare module "express-serve-static-core" {
 
 /** Requires a valid Supabase token on every /api request except health checks and webhooks. */
 export const requireSignIn: RequestHandler = (req, res, next) => {
-  if (!authEnabled() || req.path === "/health" || req.path === "/auth/config" || req.path.startsWith("/webhook")) {
+  if (!authEnabled() || req.path === "/health" || req.path === "/auth/config" || req.path.startsWith("/webhook") || req.path.startsWith("/discord/") || req.path.startsWith("/cron/")) {
     next();
     return;
   }
@@ -75,17 +75,17 @@ export const requireSignIn: RequestHandler = (req, res, next) => {
  * For /api/projects/:id/...: only members get in, and the request acts as that member.
  * Overwrites query.viewerId and body.memberId so no route can be pointed at someone else.
  */
-export function requireMember(req: Request, res: Response, next: NextFunction): void {
+export async function requireMember(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (!authEnabled()) {
     next();
     return;
   }
   const projectId = req.params.id;
-  if (!getProject(projectId)) {
+  if (!(await getProject(projectId))) {
     next(); // the route answers 404
     return;
   }
-  const member = req.user ? memberFor(projectId, req.user) : undefined;
+  const member = req.user ? await memberFor(projectId, req.user) : undefined;
   if (!member) {
     res.status(403).json({
       error: "You're not a member of this project. Ask whoever set it up to add you, then run /link in Discord.",
@@ -95,6 +95,7 @@ export function requireMember(req: Request, res: Response, next: NextFunction): 
   req.member = member;
   if (typeof req.query.viewerId === "string" || req.path.endsWith("/dashboard")) req.query.viewerId = member.id;
   if (req.body && typeof req.body === "object" && "memberId" in req.body) req.body.memberId = member.id;
+  if (req.body && typeof req.body === "object" && "viewerId" in req.body) req.body.viewerId = member.id;
   next();
 }
 

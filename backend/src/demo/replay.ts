@@ -76,14 +76,14 @@ export const isSimulating = (projectId: string): boolean => simulating.has(proje
  * demo clock if a simulation already ran, so pressing Simulate again continues the story.
  */
 export async function simulateDays(projectId: string, days: number, opts: { notify?: Notify; commits?: ReplayCommit[] } = {}): Promise<SimulateResult> {
-  const project = getProject(projectId);
+  const project = await getProject(projectId);
   if (!project) throw new Error("project not found");
   if (simulating.has(projectId)) throw new Error("a simulation is already running for this project");
   simulating.add(projectId);
   try {
     const commits = opts.commits ?? loadWeek2();
     const repo = project.repos[0] ?? "demo/paylite";
-    const demoNow = getProjectPlanState(projectId)?.demoNow;
+    const demoNow = (await getProjectPlanState(projectId))?.demoNow;
     let day = demoNow ? nextDay(localDate(new Date(demoNow))) : localDate(new Date(commits[0]?.committedAt ?? Date.now()));
 
     const result: SimulateResult = { checkinId: "", days: [], checkins: 0, skipped: 0, commitsFed: 0 };
@@ -96,14 +96,14 @@ export async function simulateDays(projectId: string, days: number, opts: { noti
         // Extra check-ins still run (or skip) on the real deadline rule; they just get no new commits.
         for (const c of slot.kind === "simulate" ? commits : []) {
           if (new Date(c.committedAt) > at) break;
-          if (insertRawCommit(projectId, { sha: c.sha, repo, authorLogin: c.authorLogin, coAuthors: c.coAuthors, message: c.message, committedAt: c.committedAt, files: c.files, diff: c.diff })) {
+          if (await insertRawCommit(projectId, { sha: c.sha, repo, authorLogin: c.authorLogin, coAuthors: c.coAuthors, message: c.message, committedAt: c.committedAt, files: c.files, diff: c.diff })) {
             result.commitsFed++;
           }
         }
-        updateProjectPlanState(projectId, { demoNow: at.toISOString() });
+        await updateProjectPlanState(projectId, { demoNow: at.toISOString() });
         const checkinId = await runCheckin(projectId, { kind: slot.kind, skipGitHub: true, notify: opts.notify });
         result.checkins++;
-        if (getCheckin(checkinId)?.skipped) result.skipped++;
+        if ((await getCheckin(checkinId))?.skipped) result.skipped++;
         if (slot.kind === "simulate") result.checkinId = checkinId;
       }
     }

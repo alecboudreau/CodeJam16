@@ -16,7 +16,7 @@ simulateRouter.post(
   "/projects/:id/simulate",
   asyncRoute(async (req, res) => {
     const { days } = SimulateBody.parse(req.body ?? {});
-    const project = getProject(req.params.id);
+    const project = await getProject(req.params.id);
     if (!project) {
       res.status(404).json({ error: "project not found" });
       return;

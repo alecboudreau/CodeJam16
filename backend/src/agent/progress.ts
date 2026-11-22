@@ -40,34 +40,38 @@ export interface ProgressUpdate {
  * 3. pending checkpoints past dueAt → missed, missedAt = now, graceEndsAt = now + grace
  * 4. a "blocked" status clears if any of the blocker's tasks gained progress
  */
-export function updateProgress(projectId: string, now: Date): ProgressUpdate {
-  const project = getProject(projectId);
+export async function updateProgress(projectId: string, now: Date): Promise<ProgressUpdate> {
+  const project = await getProject(projectId);
   if (!project) throw new Error(`project ${projectId} not found`);
-  const judgments = getJudgments(projectId);
+  const judgments = await getJudgments(projectId);
   const graceMs = project.gracePeriodHours * 3600_000;
 
-  return tx(() => {
+  return tx(async () => {
     // 1. completion
     const gained: Task[] = [];
-    const tasks = getTasks(projectId).map((t) => {
+    const tasks: Task[] = [];
+    for (const t of await getTasks(projectId)) {
       const completion = completionFromJudgments(t, judgments);
-      if (completion === t.completion) return t;
+      if (completion === t.completion) {
+        tasks.push(t);
+        continue;
+      }
       const updated = { ...t, completion };
-      upsertTask(projectId, updated);
+      await upsertTask(projectId, updated);
       if (completion > t.completion) gained.push(updated);
-      return updated;
-    });
+      tasks.push(updated);
+    }
     const completionOf = new Map(tasks.map((t) => [t.id, t.completion]));
 
     // 2 + 3. checkpoint statuses
     const met: Checkpoint[] = [];
     const missed: Checkpoint[] = [];
-    for (const c of getCheckpoints(projectId)) {
+    for (const c of await getCheckpoints(projectId)) {
       if (c.status === "met") continue;
       const completion = completionOf.get(c.taskId) ?? 0;
       if (completion >= c.targetCompletion) {
         const updated: Checkpoint = { ...c, status: "met" };
-        upsertCheckpoint(projectId, updated);
+        await upsertCheckpoint(projectId, updated);
         met.push(updated);
       } else if (c.status === "pending" && now.getTime() > new Date(c.dueAt).getTime()) {
         const updated: Checkpoint = {
@@ -76,7 +80,7 @@ export function updateProgress(projectId: string, now: Date): ProgressUpdate {
           missedAt: now.toISOString(),
           graceEndsAt: new Date(now.getTime() + graceMs).toISOString(),
         };
-        upsertCheckpoint(projectId, updated);
+        await upsertCheckpoint(projectId, updated);
         missed.push(updated);
       }
     }
@@ -84,9 +88,9 @@ export function updateProgress(projectId: string, now: Date): ProgressUpdate {
     // 4. unblock members whose blocker made progress
     const gainedOwners = new Set(gained.map((t) => t.ownerId));
     const unblocked: Member[] = [];
-    for (const m of getMembers(projectId)) {
+    for (const m of await getMembers(projectId)) {
       if (m.status === "blocked" && m.blockedById && gainedOwners.has(m.blockedById)) {
-        setMemberStatus(m.id, "none");
+        await setMemberStatus(m.id, "none");
         unblocked.push(m);
       }
     }

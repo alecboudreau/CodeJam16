@@ -10,3 +10,5 @@ Some notes of stuff to add etc.
 
 -make the UI better smoother/cleaner.
 
+-DO YOUR WORK
+

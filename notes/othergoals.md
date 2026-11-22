@@ -26,4 +26,4 @@ Some notes of stuff to add etc.
 
 -a section for a general of what YOU have to do.
 
--NAME THE DISCORD "THE ENFORCER" and change his picture to the enforcer. make him pat his baton.
+-NAME THE DISCORD "THE ENFORCER devil emoji" and change his picture to the enforcer. make him pat his baton. add bull emojis on the texts.

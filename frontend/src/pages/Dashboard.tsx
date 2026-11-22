@@ -240,9 +240,9 @@ function ProjectDashboard({
           <>
             {!data.project.planActive && (
               <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
-                The plan is awaiting agreement. Review and approve items in the{" "}
+                The team contract is waiting for signatures. Read and sign your part in the{" "}
                 <Link to="/taskmap" className="font-medium underline">
-                  task map
+                  team contract
                 </Link>
                 .
               </p>

@@ -47,7 +47,7 @@ import { EmptyState, Enforcer } from "./components/Enforcer";
 const links = [
   ["/groups", "Groups", "shield"],
   ["/dashboard", "Dashboard", "dashboard"],
-  ["/taskmap", "Task map", "plan"],
+  ["/taskmap", "Team contract", "plan"],
   ["/inbox", "Inbox", "inbox"],
   ["/trace", "Agent trace", "trace"],
   ["/report", "Status report", "report"],

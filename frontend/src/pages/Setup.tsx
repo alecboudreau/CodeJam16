@@ -553,7 +553,7 @@ function PlanProgress({ step }: { step: "idle" | "create" | "upload" | "generate
       <div className="plan-progress-copy">
         <h2 id="plan-progress-title">Building your plan</h2>
         <p className="plan-progress-lead">
-          Keep this page open. You'll go to the task map as soon as the draft is ready.
+          Keep this page open. You'll go to your team contract as soon as the draft is ready.
         </p>
         <ol className="plan-steps">
           {planSteps.map((s, i) => {

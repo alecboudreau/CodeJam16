@@ -5,6 +5,7 @@ import type { Checkpoint, Dispute, Judgment, Member, Task } from "@enforcer/shar
 import { rules } from "../config";
 import { getJudgments, getRawCommit, getTask, upsertJudgment, type RawCommit } from "../db/db";
 import { getFileContents } from "../github/client";
+import { DEMO_REPO, demoFileContents } from "../demo/files";
 import { callBig, callSmall } from "../llm/client";
 import {
   buildCheckpointDisputePrompt,
@@ -102,12 +103,15 @@ export async function judgeCommits(opts: {
 
 // ---------- dispute re-judges (big model) ----------
 
-/** Current contents of the disputed files: at most DISPUTE_MAX_FILES, each trimmed to DISPUTE_FILE_MAX_LINES. */
+/**
+ * Current contents of the disputed files: at most DISPUTE_MAX_FILES, each trimmed to DISPUTE_FILE_MAX_LINES.
+ * The demo repo isn't on GitHub, so its current files come from the demo replay data.
+ */
 export async function fetchDisputeFiles(repos: string[], paths: string[]): Promise<DisputeFile[]> {
   const files: DisputeFile[] = [];
   for (const path of paths) {
     for (const repo of repos) {
-      const found = await getFileContents(repo, path);
+      const found = repo === DEMO_REPO ? demoFileContents(path) : await getFileContents(repo, path);
       if (found.length === 0) continue;
       files.push(...found);
       break; // first repo that has the path

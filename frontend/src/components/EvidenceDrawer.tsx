@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { DisputeBody, type Checkpoint, type Dashboard, type Dispute, type DisputeTarget, type Task } from "@enforcer/shared";
 import { api, ApiError } from "../api/client";
 
-const buttonClass = "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50";
+const buttonClass = "btn btn-secondary";
 export type DisputeSubmitted = (dispute: Dispute, dashboard?: Dashboard) => void;
 const sameTarget = (a: DisputeTarget, b: DisputeTarget) => a.kind === b.kind && (a.kind === "judgment" && b.kind === "judgment" ? a.sha === b.sha : a.kind === "checkpoint" && b.kind === "checkpoint" && a.checkpointId === b.checkpointId);
 
@@ -95,7 +95,7 @@ export function DisputeForm({ projectId, viewerId, target, title, onSubmitted, o
         <textarea rows={2} value={paths} disabled={busy} onChange={(event) => setPaths(event.target.value)} placeholder={"src/settings/save.ts\nsrc/settings/form.tsx"} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" />
       </label>
       <p className="text-xs text-gray-600">Up to 5 repository paths, one per line. The agent reads those files and reviews your note.</p>
-      <div className="flex flex-wrap gap-2"><button type="submit" disabled={busy} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{busy ? "Submitting for review…" : "Submit dispute"}</button><button type="button" disabled={busy} className={buttonClass} onClick={onCancel}>Cancel</button></div>
+      <div className="flex flex-wrap gap-2"><button type="submit" disabled={busy} className="btn btn-primary">{busy ? "Submitting for review…" : "Submit dispute"}</button><button type="button" disabled={busy} className={buttonClass} onClick={onCancel}>Cancel</button></div>
     </form>}
   </div>;
 }

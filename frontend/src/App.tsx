@@ -41,11 +41,15 @@ import {
 import PageErrorBoundary from "./components/PageErrorBoundary";
 import Inbox, { useInbox } from "./pages/Inbox";
 import Groups from "./pages/Groups";
+import MyWork from "./pages/MyWork";
+import ProjectInfo from "./pages/ProjectInfo";
 import Icon, { type IconName } from "./components/Icon";
 import { EmptyState, Enforcer } from "./components/Enforcer";
 
 const links = [
+  ["/work", "My work", "work"],
   ["/groups", "Groups", "shield"],
+  ["/project", "Project info", "info"],
   ["/dashboard", "Dashboard", "dashboard"],
   ["/taskmap", "Team contract", "plan"],
   ["/inbox", "Inbox", "inbox"],
@@ -377,7 +381,7 @@ function AppShell() {
           </span>
           <span>
             Enforcer
-            <span className="brand-caption">Make progress together.</span>
+            <span className="brand-caption">Do your work</span>
           </span>
         </Link>
         <div className="rail-project">
@@ -561,6 +565,8 @@ function AppShell() {
             ) : (
               <Routes>
                 <Route path="/" element={<Navigate to="/groups" replace />} />
+                <Route path="/work" element={<MyWork />} />
+                <Route path="/project" element={<ProjectInfo />} />
                 <Route path="/groups" element={<Groups />} />
                 <Route path="/setup" element={<Setup />} />
                 <Route path="/taskmap" element={<TaskMap />} />

@@ -22,6 +22,7 @@ export const config = {
   discordGroupChannelId: process.env.DISCORD_GROUP_CHANNEL_ID ?? "",
   discordPublicKey: process.env.DISCORD_PUBLIC_KEY ?? "", // verifies /api/discord/interactions
   cronSecret: process.env.CRON_SECRET ?? "", // Supabase pg_cron sends it to /api/cron/*
+  demoPresenterKey: process.env.DEMO_PRESENTER_KEY ?? "", // demo check-ins only send Discord messages with it (#76)
   timezone: process.env.TZ ?? "America/Toronto",
   supabaseUrl: (process.env.SUPABASE_URL ?? "").replace(/\/+$/, ""),
   // Sign-in is on whenever Supabase is configured, unless explicitly disabled (local demo only).

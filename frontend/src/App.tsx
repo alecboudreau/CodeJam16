@@ -11,6 +11,7 @@ import Report from "./pages/Report";
 import { ErrorState, LoadingState } from "./components/PageFeedback";
 import SignIn from "./pages/SignIn";
 import { signOut, supabase } from "./auth/supabase";
+import { DEMO_PROJECT_ID, enterDemo, exitDemo, forgetPresenterKey, isDemoMode } from "./demo";
 import PageErrorBoundary from "./components/PageErrorBoundary";
 import Inbox, { useInbox } from "./pages/Inbox";
 
@@ -43,13 +44,13 @@ const AuthContext = createContext<AuthValue>({ on: false, email: "", userId: "" 
 const useAuth = () => useContext(AuthContext);
 
 function AuthGate({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<"checking" | "off" | "signed-out" | "signed-in" | "error">(useMocks ? "off" : "checking");
+  const [state, setState] = useState<"checking" | "off" | "signed-out" | "signed-in" | "error">(useMocks || isDemoMode() ? "off" : "checking");
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (useMocks) return;
+    if (useMocks || isDemoMode()) return; // the public demo needs no sign-in (#76)
     let cancelled = false;
     let unsubscribe = () => {};
     setState("checking");
@@ -83,6 +84,7 @@ export function useProject(): ProjectContextValue {
 }
 const projectStorageKey = `enforcer:project:${useMocks ? "mock" : "live"}`;
 function savedProjectId(): string {
+  if (isDemoMode()) return DEMO_PROJECT_ID;
   try { return localStorage.getItem(projectStorageKey) || (useMocks ? demoProjectId : ""); }
   catch { return useMocks ? demoProjectId : ""; }
 }
@@ -104,10 +106,12 @@ function ProjectProvider({ children }: { children: ReactNode }) {
     const selected = value?.members.some((m) => m.id === saved) ? saved : "";
     if (value) saveViewerId(value.id, selected);
     updateViewerId(selected);
-    try {
-      if (value) localStorage.setItem(projectStorageKey, value.id);
-      else localStorage.removeItem(projectStorageKey);
-    } catch { /* Storage is optional for the current session. */ }
+    if (!isDemoMode()) {
+      try {
+        if (value) localStorage.setItem(projectStorageKey, value.id);
+        else localStorage.removeItem(projectStorageKey);
+      } catch { /* Storage is optional for the current session. */ }
+    }
   };
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +196,7 @@ function AppShell() {
         </label>}
       </nav>
       </header>
+      {isDemoMode() && <DemoBanner />}
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <PageErrorBoundary resetKey={`${location.pathname}:${project?.id ?? ""}:${viewerId}`}>
         {projectLoading ? <LoadingState message="Loading your project…" /> : projectError ? <ErrorState title="Could not load your project" onRetry={retryProject} retryLabel="Retry project">
@@ -214,6 +219,49 @@ function AppShell() {
   );
 }
 
+// /demo (optionally /demo?key=<presenter key>) switches this tab into demo mode, then opens the trace.
+function DemoEntry() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  enterDemo(params.get("key"));
+  return <Navigate to="/trace" replace />;
+}
+
+function DemoBanner() {
+  const [presenter, setPresenter] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    api.getPresenterStatus().then((s) => { if (!cancelled) setPresenter(s.presenter); }).catch(() => { if (!cancelled) setPresenter(false); });
+    return () => { cancelled = true; };
+  }, []);
+  async function reset() {
+    setBusy(true);
+    setError("");
+    try { await api.resetDemo(); window.location.assign("/trace"); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not reset the demo."); setBusy(false); }
+  }
+  function exit() { exitDemo(); window.location.assign("/"); }
+  return (
+    <div role="region" aria-label="Demo mode" className="border-b border-amber-200 bg-amber-50">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 text-sm text-amber-950 sm:px-6 lg:px-8">
+        <span className="font-semibold">Demo mode</span>
+        <span>PayLite sample data, no sign-in.</span>
+        <span>{presenter === null ? "" : presenter ? "Presenter: Discord messages on." : "Discord messages off (Inbox and trace only)."}</span>
+        {presenter && <button type="button" className="underline" onClick={() => { forgetPresenterKey(); setPresenter(false); }}>Forget presenter key</button>}
+        <span className="flex flex-wrap gap-2 sm:ml-auto">
+          <button type="button" disabled={busy} onClick={reset} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-medium hover:bg-amber-100 disabled:opacity-50">{busy ? "Resetting…" : "Reset demo"}</button>
+          <button type="button" onClick={exit} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-medium hover:bg-amber-100">Exit demo</button>
+        </span>
+        {error && <span role="alert" className="w-full text-red-800">{error}</span>}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const location = useLocation();
+  if (location.pathname === "/demo" || location.pathname.startsWith("/demo/")) return <DemoEntry />;
   return <AuthGate><ProjectProvider><AppShell /></ProjectProvider></AuthGate>;
 }

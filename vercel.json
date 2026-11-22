@@ -6,7 +6,7 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 300,
-      "includeFiles": "{backend/dist/**,demo/commits-week2.json,demo/llm-cache.json}"
+      "includeFiles": "{backend/dist/**,demo/commits-week2.json,demo/spec.md,demo/llm-cache.json}"
     }
   },
   "rewrites": [

@@ -1331,7 +1331,7 @@
 }
 .contract-party.is-mine {
   border-color: var(--pine);
-  box-shadow: inset 4px 0 0 var(--pine);
+  box-shadow: 0 0 0 1px var(--pine);
 }
 .contract-party > header {
   display: flex;
